@@ -60,6 +60,21 @@
             letter-spacing: -0.3px;
         }
         
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clock-badge {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: #e2e8f0;
+            color: var(--primary);
+            font-weight: 800;
+        }
+        
         .status-badge {
             font-size: 11px;
             padding: 5px 10px;
@@ -231,7 +246,6 @@
             margin-bottom: 18px;
         }
         
-        /* Fiksna višina kartic, da se velikost ne spreminja */
         .info-card {
             background: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
             border: 1px solid #e1dcd5;
@@ -364,6 +378,23 @@
             padding-top: 12px;
         }
         
+        .user-indicator-footer {
+            font-size: 11px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .user-indicator-footer b {
+            color: var(--primary);
+        }
+        .change-user-link {
+            color: #3498db;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 10px;
+        }
+
         .icon-btn {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
@@ -381,6 +412,43 @@
         .icon-btn:active {
             transform: translateY(2px);
             box-shadow: 0 0 0 #cbd5e1;
+        }
+
+        /* Login Modal Overlay */
+        .login-overlay {
+            display: flex;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .login-card {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            max-width: 380px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .login-card h2 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 18px;
+        }
+        .login-card select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            margin: 15px 0;
+            background: #fafafa;
+            font-weight: 700;
+            color: var(--primary);
         }
 
         .modal-overlay {
@@ -470,10 +538,23 @@
 </head>
 <body>
 
+<!-- Login / Izbira osebe ob zagonu -->
+<div class="login-overlay" id="loginOverlay" style="display: none;">
+    <div class="login-card">
+        <h2>☕ Kdo se prijavlja?</h2>
+        <p style="font-size: 12px; color: #666;">Prosim izberi svoje ime iz spodnjega seznama za nadaljevanje:</p>
+        <select id="loginUserSelect"></select>
+        <button class="btn-3d btn-confirm" style="width:100%; padding: 10px; font-size: 13px;" onclick="handleLoginSelection()">Prijava v aplikacijo</button>
+    </div>
+</div>
+
 <div class="card">
     <div class="header">
         <h1>☕ Odmor za kavo</h1>
-        <span id="status" class="status-badge">Nalaganje...</span>
+        <div class="header-right">
+            <span id="liveClock" class="clock-badge">00:00:00</span>
+            <span id="status" class="status-badge">Nalaganje...</span>
+        </div>
     </div>
 
     <div class="next-box">
@@ -507,8 +588,14 @@
     <button class="btn-3d btn-undo" onclick="undoLast()">↩️ Razveljavi zadnji klik (Undo)</button>
 
     <div class="footer-tools">
-        <button class="icon-btn" onclick="fetchData()" title="Osveži podatke">🔄</button>
-        <button class="icon-btn" onclick="openModal()" title="Skrbniške nastavitve">⚙️</button>
+        <div class="user-indicator-footer">
+            <span>Prijavljen: <b id="currentLoggedInUser">-</b></span>
+            <span class="change-user-link" onclick="promptChangeUser()">(Zamenjaj)</span>
+        </div>
+        <div style="display:flex; gap: 6px;">
+            <button class="icon-btn" onclick="fetchData()" title="Osveži podatke">🔄</button>
+            <button class="icon-btn" onclick="openModal()" title="Skrbniške nastavitve">⚙️</button>
+        </div>
     </div>
 </div>
 
@@ -613,15 +700,76 @@
     let logs = [];
     let appActivities = [];
     let teamsLogs = [];
+    let lastRecordedDate = localStorage.getItem('lastRecordedDate') || "";
+    let loggedInUser = localStorage.getItem('loggedInUser') || "";
+
     let isCooldown = false;
     let temporaryVolunteerToday = null; 
     let forcedNextPerson = null;
     let manualSelectedPerson = null;
 
+    // Digitalna ura v živo
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        
+        // Preverjanje polnoči (00:00) med delovanjem aplikacije
+        checkMidnightRollover();
+    }, 1000);
+
+    function checkMidnightRollover() {
+        const todayStr = new Date().toDateString();
+        if (lastRecordedDate && lastRecordedDate !== todayStr) {
+            // Nova polnoč je mimo! Ponastavi dnevne začasne odsotnosti
+            Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
+            lastRecordedDate = todayStr;
+            localStorage.setItem('lastRecordedDate', todayStr);
+            logActivity(`Sistem: Nova polnoč (00:00) prestopila. Začasne odsotnosti ponastavljene.`);
+            render();
+            pushData();
+        }
+    }
+
+    function checkLogin() {
+        if (!loggedInUser || !team.includes(loggedInUser)) {
+            showLoginModal();
+        } else {
+            document.getElementById('currentLoggedInUser').innerText = loggedInUser;
+            document.getElementById('loginOverlay').style.display = 'none';
+        }
+    }
+
+    function showLoginModal() {
+        const select = document.getElementById('loginUserSelect');
+        select.innerHTML = '';
+        team.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name;
+            select.appendChild(opt);
+        });
+        document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    function handleLoginSelection() {
+        const select = document.getElementById('loginUserSelect');
+        loggedInUser = select.value;
+        if (!loggedInUser) return;
+        localStorage.setItem('loggedInUser', loggedInUser);
+        document.getElementById('currentLoggedInUser').innerText = loggedInUser;
+        document.getElementById('loginOverlay').style.display = 'none';
+        logActivity(`Uporabnik ${loggedInUser} se je prijavil v aplikacijo.`);
+    }
+
+    function promptChangeUser() {
+        showLoginModal();
+    }
+
     function logActivity(text) {
         const now = new Date();
         const timeStr = now.toLocaleDateString('sl-SI') + ' ob ' + now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'});
-        appActivities.push({ action: text, date: timeStr });
+        const actor = loggedInUser ? ` [${loggedInUser}]` : "";
+        appActivities.push({ action: text + actor, date: timeStr });
         if (appActivities.length > 50) appActivities.shift();
     }
 
@@ -695,6 +843,17 @@
                 team = data.record.team;
             }
             
+            const todayStr = new Date().toDateString();
+            if (!lastRecordedDate) {
+                lastRecordedDate = todayStr;
+                localStorage.setItem('lastRecordedDate', todayStr);
+            } else if (lastRecordedDate !== todayStr) {
+                // Prehod čez polnoč potrjen s strežnika
+                Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
+                lastRecordedDate = todayStr;
+                localStorage.setItem('lastRecordedDate', todayStr);
+            }
+
             team.forEach(name => { 
                 if (!(name in counts)) counts[name] = 0; 
                 if (!(name in absent)) absent[name] = false;
@@ -703,11 +862,13 @@
             });
 
             document.getElementById('status').innerText = '✅ Sinhronizirano';
+            checkLogin();
             render();
             renderAdminData();
         })
         .catch(() => {
             document.getElementById('status').innerText = '⚠️ Napaka povezave';
+            checkLogin();
             render();
             renderAdminData();
         });
@@ -825,7 +986,7 @@
             const absentMembers = team.filter(name => isUnavailable(name));
             absentMembers.forEach(absentName => {
                 counts[absentName] = (counts[absentName] || 0) + 1;
-                logs.push({ name: absentName, date: dateStr, isAuto: true });
+                logs.push({ name: absentName, date: dateStr, isAuto: true, actor: 'Sistem' });
                 logActivity(`Avtomatski +1 za ${absentName} (Zaključen krog med odsotnostjo)`);
             });
 
@@ -927,7 +1088,7 @@
         const scheduledPerson = getNextPerson();
         if (scheduledPerson === "-") return;
 
-        if (confirm(`Ali želiš označiti, da sodelavec ${scheduledPerson} danes ni prisoten? (Ko bo kliknil vrnitev, bo takoj spet na vrsti)`)) {
+        if (confirm(`Ali želiš označiti, da sodelavec ${scheduledPerson} danes ni prisoten?`)) {
             tempAbsent[scheduledPerson] = true;
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
@@ -957,7 +1118,7 @@
         }
         manualSelectedPerson = null;
 
-        logActivity(`Sodelavec ${name} spremenil status (Klasičen dopust: ${absent[name] ? 'DA' : 'NE'})`);
+        logActivity(`Spremenjen status za ${name} (Klasičen dopust: ${absent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
         render();
         renderAdminData();
@@ -973,7 +1134,7 @@
         }
         manualSelectedPerson = null;
         
-        logActivity(`Sodelavec ${name} spremenil status (Začasna odsotnost/Danes ni tu: ${tempAbsent[name] ? 'DA' : 'NE - Vrnil se je'})`);
+        logActivity(`Spremenjen status za ${name} (Začasna odsotnost: ${tempAbsent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
         render();
         renderAdminData();
@@ -992,7 +1153,7 @@
 
         const now = new Date();
         const dateStr = now.toLocaleDateString('sl-SI') + ' ob ' + now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'});
-        logs.push({ name: name, date: dateStr, isVolunteer: isVolunteer, isExtraPay: isExtraPay, isAuto: false });
+        logs.push({ name: name, date: dateStr, isVolunteer: isVolunteer, isExtraPay: isExtraPay, isAuto: false, actor: loggedInUser || 'Neznano' });
 
         logActivity(`Kavo je častil: ${name} ${isExtraPay ? '(Izven vrstnega reda)' : ''}`);
 
@@ -1068,7 +1229,7 @@
             return;
         }
         const last = logs[logs.length - 1];
-        if (confirm(`Želiš razveljaviti zadnji klik za sodelavca ${last.name}?`)) {
+        if (confirm(`Želiš razveljaviti zadnji klik za sodelavca ${last.name} (izvedel: ${last.actor || 'Neznano'})?`)) {
             logs.pop();
             if (counts[last.name] > 0) counts[last.name] -= 1;
             if (!last.isAuto) {
@@ -1092,6 +1253,7 @@
         team[index] = team[newIndex];
         team[newIndex] = temp;
 
+        logActivity(`Spremenjen vrstni red članov (premaknjen ${temp})`);
         renderAdminData();
         render();
         pushData();
@@ -1099,7 +1261,7 @@
 
     function updateMemberCount(name, change) {
         counts[name] = Math.max(0, (counts[name] || 0) + change);
-        logActivity(`Skrbnik ročno spremenil števec za ${name} na ${counts[name]}`);
+        logActivity(`Spremenjen števec za ${name} na ${counts[name]}`);
         renderAdminData();
         render();
         pushData();
@@ -1112,7 +1274,7 @@
         }
         forcedNextPerson = name;
         manualSelectedPerson = name;
-        logActivity(`Skrbnik ročno nastavil, da je naslednji na vrsti: ${name}`);
+        logActivity(`Ročno nastavljeno, da je naslednji na vrsti: ${name}`);
         alert(`Uspešno nastavljeno. Naslednji na vrsti je zdaj ${name}.`);
         renderAdminData();
         render();
@@ -1179,7 +1341,7 @@
             item.className = 'log-item';
             item.innerHTML = `
                 <div class="log-item-header">
-                    <span><b>${entry.name}</b> ${entry.isExtraPay ? '<small style="color:#e67e22;">(Izven vrstnega reda)</small>' : (entry.isAuto ? '<small style="color:#3498db;">(Avto - Odsotnost)</small>' : '')}</span> 
+                    <span><b>${entry.name}</b> ${entry.isExtraPay ? '<small style="color:#e67e22;">(Izven vrstnega reda)</small>' : (entry.isAuto ? '<small style="color:#3498db;">(Avto - Odsotnost)</small>' : '')} <small style="color:#666;">(Urejal: ${entry.actor || 'Neznano'})</small></span> 
                     <span style="color:#7f8c8d;">${entry.date}</span>
                 </div>
             `;
@@ -1322,7 +1484,7 @@
             return;
         }
 
-        if (confirm("Res želiš ponastaviti izbrane podatke v bazi? (Povezave bodo ostale nespremenjene)")) {
+        if (confirm("Res želiš ponastaviti izbrane podatke v bazi?")) {
             if (doCounts) {
                 counts = {};
                 currentRoundPaid = {};
@@ -1341,7 +1503,7 @@
             forcedNextPerson = null;
             manualSelectedPerson = null;
 
-            logActivity("⚠️ Izvedena delna/popolna ponastavitev baze (izbrane možnosti)!");
+            logActivity("⚠️ Izvedena ponastavitev baze!");
             render();
             renderAdminData();
             pushData();

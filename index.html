@@ -726,6 +726,8 @@
     let temporaryVolunteerToday = null; 
     let forcedNextPerson = null;
     let manualSelectedPerson = null;
+    let pinnedTodayPerson = null; // Oseba, ki je fiksno na vrsti cel dan do polnoči
+    let pinnedDateStr = localStorage.getItem('pinnedDateStr') || "";
 
     function updateDateTime() {
         const now = new Date();
@@ -746,7 +748,14 @@
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
-            logActivity(`Sistem: Nova polnoč (00:00) prestopila. Sistem se je premaknil na naslednjega v vrsti (krog ostaja ohranjen).`);
+
+            // Ob polnoči počistimo dnevno prilepljeno osebo, da se vrstni red uradno pomakne naprej
+            pinnedTodayPerson = null;
+            pinnedDateStr = "";
+            localStorage.removeItem('pinnedTodayPerson');
+            localStorage.removeItem('pinnedDateStr');
+
+            logActivity(`Sistem: Nova polnoč (00:00). Vrstni red se je pomaknil na naslednjega v vrsti.`);
             render();
             pushData();
         }
@@ -861,6 +870,14 @@
             appActivities = data.record.appActivities || [];
             teamsLogs = data.record.teamsLogs || [];
             forcedNextPerson = data.record.forcedNextPerson || null;
+            pinnedTodayPerson = data.record.pinnedTodayPerson || null;
+            pinnedDateStr = data.record.pinnedDateStr || "";
+
+            if (pinnedDateStr !== new Date().toDateString()) {
+                pinnedTodayPerson = null;
+                pinnedDateStr = "";
+            }
+
             if (data.record.team && Array.isArray(data.record.team)) {
                 team = data.record.team;
             }
@@ -873,6 +890,8 @@
                 Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
                 lastRecordedDate = todayStr;
                 localStorage.setItem('lastRecordedDate', todayStr);
+                pinnedTodayPerson = null;
+                pinnedDateStr = "";
             }
 
             team.forEach(name => { 
@@ -913,7 +932,9 @@
                 logs: logs,
                 appActivities: appActivities,
                 teamsLogs: teamsLogs,
-                forcedNextPerson: forcedNextPerson
+                forcedNextPerson: forcedNextPerson,
+                pinnedTodayPerson: pinnedTodayPerson,
+                pinnedDateStr: pinnedDateStr
             })
         })
         .then(res => {
@@ -930,6 +951,12 @@
     }
 
     function getNextPerson() {
+        // Če imamo za danes že določeno osebo (zaradi potrditve ali fiksiranja), vrnemo njo ves dan
+        const todayStr = new Date().toDateString();
+        if (pinnedTodayPerson && pinnedDateStr === todayStr && !isUnavailable(pinnedTodayPerson)) {
+            return pinnedTodayPerson;
+        }
+
         if (forcedNextPerson && !isUnavailable(forcedNextPerson) && !currentRoundPaid[forcedNextPerson]) {
             return forcedNextPerson;
         }
@@ -953,6 +980,8 @@
             let nextIndex = (lastIndex + i) % team.length;
             let candidate = team[nextIndex];
             if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
+                pinnedTodayPerson = candidate;
+                pinnedDateStr = todayStr;
                 return candidate;
             }
         }
@@ -962,11 +991,16 @@
         for (let i = 0; i < team.length; i++) {
             let candidate = team[i];
             if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
+                pinnedTodayPerson = candidate;
+                pinnedDateStr = todayStr;
                 return candidate;
             }
         }
 
-        return team.find(name => !isUnavailable(name)) || team[0];
+        let fallback = team.find(name => !isUnavailable(name)) || team[0];
+        pinnedTodayPerson = fallback;
+        pinnedDateStr = todayStr;
+        return fallback;
     }
 
     function getPersonAfter(givenName) {
@@ -1133,6 +1167,10 @@
         if (personToConfirm === "-") return;
         
         if (confirm(`Ali potrjuješ, da je ${personToConfirm} danes častil kavo?`)) {
+            // Poskrbimo, da oseba ostane na vrsti cel dan, tudi ko potrdi
+            pinnedTodayPerson = personToConfirm;
+            pinnedDateStr = new Date().toDateString();
+
             temporaryVolunteerToday = null; 
             forcedNextPerson = null;
             addPayment(personToConfirm, false, false);
@@ -1149,6 +1187,7 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
+            pinnedTodayPerson = null; // Zrušimo pin, da takoj najde naslednjega prisotnega za danes
 
             logActivity(`Sodelavec ${scheduledPerson} označen kot začasno odsoten preko gumba "Danes ne morem"`);
 
@@ -1173,6 +1212,7 @@
             forcedNextPerson = name;
         }
         manualSelectedPerson = null;
+        pinnedTodayPerson = null;
 
         logActivity(`Spremenjen status za ${name} (Klasičen dopust: ${absent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
@@ -1189,6 +1229,7 @@
             forcedNextPerson = name;
         }
         manualSelectedPerson = null;
+        pinnedTodayPerson = null;
         
         logActivity(`Spremenjen status za ${name} (Začasna odsotnost: ${tempAbsent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
@@ -1247,6 +1288,8 @@
                     document.getElementById('volunteerSelector').style.display = 'none';
                     temporaryVolunteerToday = name;
                     manualSelectedPerson = name;
+                    pinnedTodayPerson = name;
+                    pinnedDateStr = new Date().toDateString();
                     addPayment(name, true, true);
                     manualSelectedPerson = null;
                 }
@@ -1307,6 +1350,7 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
+            pinnedTodayPerson = null;
             logActivity(`Razveljavljena zadnja častitev za: ${last.name}`);
             render();
             renderAdminData();
@@ -1343,6 +1387,8 @@
         }
         forcedNextPerson = name;
         manualSelectedPerson = name;
+        pinnedTodayPerson = name;
+        pinnedDateStr = new Date().toDateString();
         logActivity(`Ročno nastavljeno, da je naslednji na vrsti: ${name}`);
         
         renderAdminData();
@@ -1491,6 +1537,7 @@
             delete currentRoundPaid[name];
             if (forcedNextPerson === name) forcedNextPerson = null;
             if (manualSelectedPerson === name) manualSelectedPerson = null;
+            if (pinnedTodayPerson === name) pinnedTodayPerson = null;
 
             logActivity(`Odstranjen sodelavec: ${name}`);
 
@@ -1580,6 +1627,8 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
+            pinnedTodayPerson = null;
+            pinnedDateStr = "";
 
             logActivity("⚠️ Izvedena ponastavitev baze!");
             render();

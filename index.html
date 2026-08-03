@@ -66,6 +66,15 @@
             gap: 8px;
         }
 
+        .date-badge {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: #eef2f6;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
         .clock-badge {
             font-size: 12px;
             padding: 5px 10px;
@@ -552,6 +561,7 @@
     <div class="header">
         <h1>☕ Odmor za kavo</h1>
         <div class="header-right">
+            <span id="liveDate" class="date-badge">-</span>
             <span id="liveClock" class="clock-badge">00:00:00</span>
             <span id="status" class="status-badge">Nalaganje...</span>
         </div>
@@ -708,14 +718,21 @@
     let forcedNextPerson = null;
     let manualSelectedPerson = null;
 
-    // Digitalna ura v živo
-    setInterval(() => {
+    // Posodabljanje ure in datuma v živo
+    function updateDateTime() {
         const now = new Date();
         document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
         
+        // Prikaz dneva v tednu in datuma (npr. "pon., 3. 8. 2026")
+        const options = { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' };
+        document.getElementById('liveDate').innerText = now.toLocaleDateString('sl-SI', options);
+        
         // Preverjanje polnoči (00:00) med delovanjem aplikacije
         checkMidnightRollover();
-    }, 1000);
+    }
+
+    setInterval(updateDateTime, 1000);
+    updateDateTime(); // Takojšnji zagon ob nalaganju
 
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();

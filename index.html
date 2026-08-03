@@ -72,7 +72,7 @@
             border-radius: 20px;
             background: #eef2f6;
             color: var(--primary);
-            font-weight: 700;
+            font-weight: 800;
         }
 
         .clock-badge {
@@ -343,13 +343,20 @@
         .badge-selected { background: #3498db; }
         
         .card-subinfo {
-            font-size: 9px;
+            font-size: 8.5px;
             color: #7f8c8d;
-            margin-top: 2px;
             font-weight: 700;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .card-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 4px;
         }
 
         .card-actions-row {
@@ -483,7 +490,7 @@
             background: white;
             padding: 20px;
             border-radius: 18px;
-            max-width: 650px;
+            max-width: 680px;
             width: 95%;
             box-shadow: 0 15px 30px rgba(0,0,0,0.15);
             max-height: 85vh;
@@ -634,8 +641,8 @@
 
         <div id="settingsView" style="display: none;">
             <div class="admin-section" style="border-top: none; padding-top: 0;">
-                <h3>📊 Urejanje članov, števcev in vrstnega reda</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Skrbnik lahko neposredno prilagodi števce, nastavi naslednjega na vrsti, preklopi dopust ali označi status "Že dal" v trenutnem krogu.</p>
+                <h3>📊 Urejanje članov, števcev in zadnjih datumov</h3>
+                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Skrbnik lahko prilagodi števce, nastavitve dopustov ali ročno uredi datum zadnjega plačila.</p>
                 <div style="overflow-x: auto;">
                     <table class="member-table">
                         <thead>
@@ -643,8 +650,8 @@
                                 <th>Ime</th>
                                 <th>Štev.</th>
                                 <th>Bilanca</th>
+                                <th>Zadnji datum (Ročno / Samodejno)</th>
                                 <th>Dopust</th>
-                                <th>Trenutni krog</th>
                                 <th>Akcije</th>
                             </tr>
                         </thead>
@@ -699,9 +706,23 @@
                     <label><input type="checkbox" id="resetActivities" checked> Ponastavi aktivnosti</label>
                     <label><input type="checkbox" id="resetTeams" checked> Ponastavi Teams sporočila</label>
                 </div>
-                <button class="btn-danger" onclick="resetSelectedData()">⚠️ Ponastavi izbrano</button>
+                <button class="btn-danger" onclick="promptResetVerification()">⚠️ Ponastavi izbrano (Zahteva geslo)</button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Modal za ponovno preverjanje gesla ob ponastavitvi -->
+<div class="modal-overlay" id="resetAuthOverlay" style="display: none; z-index: 2500;">
+    <div class="login-card">
+        <h2>⚠️ Potrditev ponastavitve</h2>
+        <p style="font-size: 12px; color: #666;">Za izvedbo ponastavitve baze vnesi skrbniško geslo:</p>
+        <input type="password" id="resetPassInput" placeholder="Vnesi skrbniško geslo" style="width: 100%; padding: 8px; text-align: center; font-size: 13px; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;">
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-3d btn-skip" style="flex:1; padding: 8px;" onclick="closeResetAuthModal()">Prekliči</button>
+            <button class="btn-3d btn-confirm" style="flex:1; padding: 8px;" onclick="verifyAndExecuteReset()">Potrdi brisanje</button>
+        </div>
+        <p id="resetAuthError" style="color: red; font-size: 11px; display: none; margin-top: 6px;">Napačno geslo!</p>
     </div>
 </div>
 
@@ -716,6 +737,7 @@
     let absent = {};
     let tempAbsent = {}; 
     let currentRoundPaid = {};
+    let lastPaymentDates = {}; 
     let logs = [];
     let appActivities = [];
     let teamsLogs = [];
@@ -734,7 +756,7 @@
         const now = new Date();
         document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
         
-        const options = { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' };
+        const options = { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' };
         document.getElementById('liveDate').innerText = now.toLocaleDateString('sl-SI', options);
         
         checkMidnightRollover();
@@ -872,6 +894,7 @@
             absent = data.record.absent || {};
             tempAbsent = data.record.tempAbsent || {};
             currentRoundPaid = data.record.currentRoundPaid || {};
+            lastPaymentDates = data.record.lastPaymentDates || {};
             logs = data.record.logs || [];
             appActivities = data.record.appActivities || [];
             teamsLogs = data.record.teamsLogs || [];
@@ -900,6 +923,7 @@
             if (!(name in absent)) absent[name] = false;
             if (!(name in tempAbsent)) tempAbsent[name] = false;
             if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
+            if (!(name in lastPaymentDates)) lastPaymentDates[name] = "";
         });
         finalizeDataLoad(statusText);
     }
@@ -936,6 +960,7 @@
                 absent: absent, 
                 tempAbsent: tempAbsent,
                 currentRoundPaid: currentRoundPaid, 
+                lastPaymentDates: lastPaymentDates,
                 logs: logs,
                 appActivities: appActivities,
                 teamsLogs: teamsLogs,
@@ -1024,7 +1049,7 @@
         const allPresentPaid = presentMembers.every(name => currentRoundPaid[name] === true);
         if (allPresentPaid) {
             const now = new Date();
-            const dateStr = now.toLocaleDateString('sl-SI') + ' (Avto - Krog zaključen)';
+            const dateStr = now.toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
             
             const absentMembers = team.filter(name => isUnavailable(name));
             absentMembers.forEach(absentName => {
@@ -1045,15 +1070,6 @@
 
     function checkRoundCompletion() {
         resetCurrentRoundIfAllPaid();
-    }
-
-    function getLastPaymentDate(name) {
-        for (let i = logs.length - 1; i >= 0; i--) {
-            if (logs[i].name === name && !logs[i].isAuto) {
-                return logs[i].date;
-            }
-        }
-        return null;
     }
 
     function render() {
@@ -1092,12 +1108,13 @@
                 badgeHtml = `<span class="badge badge-turn">Na vrsti</span>`;
             }
 
-            const lastDate = getLastPaymentDate(name);
+            const rawLastDate = lastPaymentDates[name];
             let subInfoHtml = '';
-            if (currentRoundPaid[name] && lastDate) {
-                subInfoHtml = `<div class="card-subinfo">📅 ${lastDate}</div>`;
+            if (rawLastDate) {
+                const dateOnly = rawLastDate.split(' ob ')[0].trim();
+                subInfoHtml = `<span class="card-subinfo">📅 ${dateOnly}</span>`;
             } else {
-                subInfoHtml = `<div class="card-subinfo" style="visibility:hidden;">-</div>`;
+                subInfoHtml = `<span class="card-subinfo" style="visibility:hidden;">-</span>`;
             }
 
             const card = document.createElement('div');
@@ -1114,7 +1131,7 @@
             card.innerHTML = `
                 <div class="card-header">
                     <span class="card-name">${name}</span>
-                    <div style="display:flex; flex-direction:column; width:100%;">
+                    <div class="card-status-row">
                         <div>${badgeHtml}</div>
                         ${subInfoHtml}
                     </div>
@@ -1141,7 +1158,10 @@
     function toggleRoundPaidDirect(name) {
         currentRoundPaid[name] = !currentRoundPaid[name];
         if (currentRoundPaid[name]) {
-            logActivity(`Ročno označeno (preko kartice), da je ${name} že dal za kavo v tem krogu.`);
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+            lastPaymentDates[name] = dateStr;
+            logActivity(`Ročno označeno (preko kartice), da je ${name} plačal rundo dne ${dateStr}.`);
         } else {
             logActivity(`Ročno odstranjena označba 'že dal' za ${name} v tem krogu.`);
         }
@@ -1154,7 +1174,7 @@
         const personToConfirm = manualSelectedPerson || getNextPerson();
         if (personToConfirm === "-") return;
         
-        if (confirm(`Ali potrjuješ, da je ${personToConfirm} danes častil kavo?`)) {
+        if (confirm(`Ali potrjuješ, da je ${personToConfirm} danes dal za rundo?`)) {
             temporaryVolunteerToday = null; 
             forcedNextPerson = null;
             
@@ -1234,10 +1254,12 @@
         forcedNextPerson = null;
 
         const now = new Date();
-        const dateStr = now.toLocaleDateString('sl-SI') + ' ob ' + now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'});
+        const dateStr = now.toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+        lastPaymentDates[name] = dateStr;
+
         logs.push({ name: name, date: dateStr, isVolunteer: isVolunteer, isExtraPay: isExtraPay, isAuto: false, actor: loggedInUser || 'Neznano' });
 
-        logActivity(`Kavo je častil: ${name} ${isExtraPay ? '(Izven vrstnega reda)' : ''}`);
+        logActivity(`Zabeležena runda za: ${name} ${isExtraPay ? '(Izven vrstnega reda)' : ''} dne ${dateStr}`);
 
         checkRoundCompletion();
 
@@ -1269,7 +1291,7 @@
             btn.className = 'btn-volunteer-name';
             btn.innerText = name;
             btn.onclick = () => {
-                if (confirm(`Ali potrjuješ, da se je ${name} javil in bo danes častil kavo?`)) {
+                if (confirm(`Ali potrjuješ, da se je ${name} javil in bo danes plačal rundo?`)) {
                     document.getElementById('volunteerSelector').style.display = 'none';
                     temporaryVolunteerToday = name;
                     manualSelectedPerson = name;
@@ -1324,7 +1346,7 @@
 
     function undoLast() {
         if (logs.length === 0) {
-            alert("Ni zabeleženih častitev za razveljavitev!");
+            alert("Ni zabeleženih rund za razveljavitev!");
             return;
         }
         const last = logs[logs.length - 1];
@@ -1334,6 +1356,15 @@
             if (!last.isAuto) {
                 currentRoundPaid[last.name] = false;
             }
+            let previousDateForUser = "";
+            for (let i = logs.length - 1; i >= 0; i--) {
+                if (logs[i].name === last.name && !logs[i].isAuto) {
+                    previousDateForUser = logs[i].date;
+                    break;
+                }
+            }
+            lastPaymentDates[last.name] = previousDateForUser;
+
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
@@ -1341,7 +1372,7 @@
             confirmedDateStr = "";
             confirmedPersonName = "";
 
-            logActivity(`Razveljavljena zadnja častitev za: ${last.name}`);
+            logActivity(`Razveljavljena zadnja evidenca pogostitve za: ${last.name}`);
             render();
             renderAdminData();
             pushData();
@@ -1368,6 +1399,37 @@
         renderAdminData();
         render();
         pushData();
+    }
+
+    function updateMemberDateManual(name, rawVal) {
+        if (!rawVal) {
+            lastPaymentDates[name] = "";
+            logActivity(`Počiščen zadnji datum za ${name}`);
+        } else {
+            // rawVal pride iz <input type="date"> kot "YYYY-MM-DD"
+            const parts = rawVal.split('-');
+            if (parts.length === 3) {
+                const formatted = `${parseInt(parts[2])}. ${parseInt(parts[1])}. ${parts[0]}`;
+                lastPaymentDates[name] = formatted;
+                logActivity(`Ročno nastavljen zadnji datum za ${name} na: "${formatted}"`);
+            }
+        }
+        render();
+        pushData();
+    }
+
+    // Pomagalna funkcija za pretvorbo "D. M. LLLL" nazaj v "YYYY-MM-DD" za brskalnikov koledar
+    function convertToInputDate(dateStr) {
+        if (!dateStr) return '';
+        const clean = dateStr.split(' ob ')[0].trim();
+        const parts = clean.split('.');
+        if (parts.length >= 3) {
+            const d = parts[0].trim().padStart(2, '0');
+            const m = parts[1].trim().padStart(2, '0');
+            const y = parts[2].trim();
+            return `${y}-${m}-${d}`;
+        }
+        return '';
     }
 
     function setForcedNext(name) {
@@ -1402,7 +1464,8 @@
             const isAb = absent[name] || false;
             const isTempAb = tempAbsent[name] || false;
             const isNext = (name === getNextPerson());
-            const hasPaidInRound = currentRoundPaid[name] || false;
+            const currentSavedDate = lastPaymentDates[name] || '';
+            const inputDateVal = convertToInputDate(currentSavedDate);
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1419,6 +1482,9 @@
                 </td>
                 <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
                 <td>
+                    <input type="date" value="${inputDateVal}" style="width: 130px; font-size: 10px; padding: 3px; border:1px solid #ccc; border-radius:4px;" onchange="updateMemberDateManual('${name}', this.value)" title="Izberi datum s koledarjem">
+                </td>
+                <td>
                     <div style="display:flex; gap:2px;">
                         <button style="font-size:9px; padding:2px 4px; cursor:pointer; background:${isAb ? '#f1f5f9' : '#eafaf1'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleAbsent('${name}'); renderAdminData();" title="Klasičen dopust">
                             ${isAb ? '🌴 Dopust' : '👤 Delo'}
@@ -1427,11 +1493,6 @@
                             ${isTempAb ? '⏳ Odsoten' : '👤 Prisoten'}
                         </button>
                     </div>
-                </td>
-                <td>
-                    <button style="font-size:9px; padding:3px 6px; cursor:pointer; background:${hasPaidInRound ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${hasPaidInRound ? '#3498db' : '#cbd5e1'}; border-radius:4px; font-weight:700; color:${hasPaidInRound ? '#0369a1' : '#64748b'};" onclick="toggleRoundPaidDirect('${name}'); renderAdminData();" title="Klikni za preklop statusa v tem krogu">
-                        ${hasPaidInRound ? '✓ Že dal' : '✗ Ni še'}
-                    </button>
                 </td>
                 <td>
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
@@ -1446,7 +1507,7 @@
         });
 
         const logContainer = document.getElementById('adminLog');
-        logContainer.innerHTML = logs.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih častitev.</i>' : '';
+        logContainer.innerHTML = logs.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih rund.</i>' : '';
         
         logs.slice().reverse().forEach(entry => {
             const item = document.createElement('div');
@@ -1507,6 +1568,7 @@
         absent[name] = false;
         tempAbsent[name] = false;
         currentRoundPaid[name] = false;
+        lastPaymentDates[name] = "";
 
         logActivity(`Dodan nov sodelavec: ${name}`);
 
@@ -1523,6 +1585,7 @@
             delete absent[name];
             delete tempAbsent[name];
             delete currentRoundPaid[name];
+            delete lastPaymentDates[name];
             if (forcedNextPerson === name) forcedNextPerson = null;
             if (manualSelectedPerson === name) manualSelectedPerson = null;
 
@@ -1563,9 +1626,11 @@
             document.getElementById('apiKey').value = API_KEY;
             document.getElementById('webhookUrl').value = WEBHOOK;
             
+            logActivity(`Uporabnik ${loggedInUser || 'Neznano'} se je uspešno prijavil v nastavitve z geslom.`);
             renderAdminData();
         } else {
             document.getElementById('authError').style.display = 'block';
+            logActivity(`Neznan poskus neuspešne prijave v nastavitve z napačnim geslom.`);
         }
     }
 
@@ -1585,7 +1650,28 @@
         fetchData();
     }
 
-    function resetSelectedData() {
+    function promptResetVerification() {
+        document.getElementById('resetPassInput').value = '';
+        document.getElementById('resetAuthError').style.display = 'none';
+        document.getElementById('resetAuthOverlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('resetPassInput').focus(), 50);
+    }
+
+    function closeResetAuthModal() {
+        document.getElementById('resetAuthOverlay').style.display = 'none';
+    }
+
+    function verifyAndExecuteReset() {
+        const passVal = document.getElementById('resetPassInput').value;
+        if (passVal === 'geslo') {
+            document.getElementById('resetAuthOverlay').style.display = 'none';
+            executeResetSelectedData();
+        } else {
+            document.getElementById('resetAuthError').style.display = 'block';
+        }
+    }
+
+    function executeResetSelectedData() {
         const doCounts = document.getElementById('resetCounts').checked;
         const doLogs = document.getElementById('resetLogs').checked;
         const doActivities = document.getElementById('resetActivities').checked;
@@ -1596,33 +1682,33 @@
             return;
         }
 
-        if (confirm("Res želiš ponastaviti izbrane podatke v bazi?")) {
-            if (doCounts) {
-                counts = {};
-                currentRoundPaid = {};
-                team.forEach(name => {
-                    counts[name] = 0;
-                    absent[name] = false;
-                    tempAbsent[name] = false;
-                    currentRoundPaid[name] = false;
-                });
-            }
-            if (doLogs) logs = [];
-            if (doActivities) appActivities = [];
-            if (doTeams) teamsLogs = [];
-
-            temporaryVolunteerToday = null;
-            forcedNextPerson = null;
-            manualSelectedPerson = null;
-            confirmedDateStr = "";
-            confirmedPersonName = "";
-
-            logActivity("⚠️ Izvedena ponastavitev baze!");
-            render();
-            renderAdminData();
-            pushData();
-            closeModal();
+        if (doCounts) {
+            counts = {};
+            currentRoundPaid = {};
+            lastPaymentDates = {};
+            team.forEach(name => {
+                counts[name] = 0;
+                absent[name] = false;
+                tempAbsent[name] = false;
+                currentRoundPaid[name] = false;
+                lastPaymentDates[name] = "";
+            });
         }
+        if (doLogs) logs = [];
+        if (doActivities) appActivities = [];
+        if (doTeams) teamsLogs = [];
+
+        temporaryVolunteerToday = null;
+        forcedNextPerson = null;
+        manualSelectedPerson = null;
+        confirmedDateStr = "";
+        confirmedPersonName = "";
+
+        logActivity("⚠️ Izvedena ponastavitev baze (z overitvijo gesla)!");
+        render();
+        renderAdminData();
+        pushData();
+        closeModal();
     }
 
     fetchData();

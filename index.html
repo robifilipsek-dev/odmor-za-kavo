@@ -726,8 +726,9 @@
     let temporaryVolunteerToday = null; 
     let forcedNextPerson = null;
     let manualSelectedPerson = null;
-    let pinnedTodayPerson = null; // Oseba, ki je fiksno na vrsti cel dan do polnoči
-    let pinnedDateStr = localStorage.getItem('pinnedDateStr') || "";
+    
+    let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
+    let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
 
     function updateDateTime() {
         const now = new Date();
@@ -749,13 +750,7 @@
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
 
-            // Ob polnoči počistimo dnevno prilepljeno osebo, da se vrstni red uradno pomakne naprej
-            pinnedTodayPerson = null;
-            pinnedDateStr = "";
-            localStorage.removeItem('pinnedTodayPerson');
-            localStorage.removeItem('pinnedDateStr');
-
-            logActivity(`Sistem: Nova polnoč (00:00). Vrstni red se je pomaknil na naslednjega v vrsti.`);
+            logActivity(`Sistem: Nova polnoč (00:00).`);
             render();
             pushData();
         }
@@ -851,17 +846,28 @@
     }
 
     function fetchData() {
-        document.getElementById('status').innerText = '⏳ Osveževanje...';
+        document.getElementById('status').innerText = '⏳ Nalaganje...';
+
+        let timeoutTriggered = false;
+        const timer = setTimeout(() => {
+            timeoutTriggered = true;
+            console.warn("JSONBin ni odgovoril pravočasno – nalagam lokalno stanje.");
+            loadDefaultDataState("⚠️ Časovna prekoračitev baze");
+        }, 3000);
 
         fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': API_KEY }
         })
         .then(res => {
+            if (timeoutTriggered) return;
+            clearTimeout(timer);
             if (!res.ok) throw new Error("HTTP napaka " + res.status);
             return res.json();
         })
         .then(data => {
+            if (timeoutTriggered || !data || !data.record) return;
+            
             counts = data.record.counts || {};
             absent = data.record.absent || {};
             tempAbsent = data.record.tempAbsent || {};
@@ -870,48 +876,49 @@
             appActivities = data.record.appActivities || [];
             teamsLogs = data.record.teamsLogs || [];
             forcedNextPerson = data.record.forcedNextPerson || null;
-            pinnedTodayPerson = data.record.pinnedTodayPerson || null;
-            pinnedDateStr = data.record.pinnedDateStr || "";
-
-            if (pinnedDateStr !== new Date().toDateString()) {
-                pinnedTodayPerson = null;
-                pinnedDateStr = "";
-            }
+            
+            confirmedDateStr = data.record.confirmedDateStr || "";
+            confirmedPersonName = data.record.confirmedPersonName || "";
 
             if (data.record.team && Array.isArray(data.record.team)) {
                 team = data.record.team;
             }
             
-            const todayStr = new Date().toDateString();
-            if (!lastRecordedDate) {
-                lastRecordedDate = todayStr;
-                localStorage.setItem('lastRecordedDate', todayStr);
-            } else if (lastRecordedDate !== todayStr) {
-                Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
-                lastRecordedDate = todayStr;
-                localStorage.setItem('lastRecordedDate', todayStr);
-                pinnedTodayPerson = null;
-                pinnedDateStr = "";
-            }
-
-            team.forEach(name => { 
-                if (!(name in counts)) counts[name] = 0; 
-                if (!(name in absent)) absent[name] = false;
-                if (!(name in tempAbsent)) tempAbsent[name] = false;
-                if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
-            });
-
-            document.getElementById('status').innerText = '✅ Sinhronizirano';
-            checkLogin();
-            render();
-            renderAdminData();
+            finalizeDataLoad('✅ Sinhronizirano');
         })
-        .catch(() => {
-            document.getElementById('status').innerText = '⚠️ Napaka povezave';
-            checkLogin();
-            render();
-            renderAdminData();
+        .catch(err => {
+            if (timeoutTriggered) return;
+            clearTimeout(timer);
+            console.error("Napaka pri branju baze:", err);
+            loadDefaultDataState('⚠️ Uporabljam lokalni način');
         });
+    }
+
+    function loadDefaultDataState(statusText) {
+        team.forEach(name => { 
+            if (!(name in counts)) counts[name] = 0; 
+            if (!(name in absent)) absent[name] = false;
+            if (!(name in tempAbsent)) tempAbsent[name] = false;
+            if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
+        });
+        finalizeDataLoad(statusText);
+    }
+
+    function finalizeDataLoad(statusText) {
+        const todayStr = new Date().toDateString();
+        if (!lastRecordedDate) {
+            lastRecordedDate = todayStr;
+            localStorage.setItem('lastRecordedDate', todayStr);
+        } else if (lastRecordedDate !== todayStr) {
+            Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
+            lastRecordedDate = todayStr;
+            localStorage.setItem('lastRecordedDate', todayStr);
+        }
+
+        document.getElementById('status').innerText = statusText;
+        checkLogin();
+        render();
+        renderAdminData();
     }
 
     function pushData() {
@@ -933,8 +940,8 @@
                 appActivities: appActivities,
                 teamsLogs: teamsLogs,
                 forcedNextPerson: forcedNextPerson,
-                pinnedTodayPerson: pinnedTodayPerson,
-                pinnedDateStr: pinnedDateStr
+                confirmedDateStr: confirmedDateStr,
+                confirmedPersonName: confirmedPersonName
             })
         })
         .then(res => {
@@ -951,12 +958,6 @@
     }
 
     function getNextPerson() {
-        // Če imamo za danes že določeno osebo (zaradi potrditve ali fiksiranja), vrnemo njo ves dan
-        const todayStr = new Date().toDateString();
-        if (pinnedTodayPerson && pinnedDateStr === todayStr && !isUnavailable(pinnedTodayPerson)) {
-            return pinnedTodayPerson;
-        }
-
         if (forcedNextPerson && !isUnavailable(forcedNextPerson) && !currentRoundPaid[forcedNextPerson]) {
             return forcedNextPerson;
         }
@@ -971,35 +972,33 @@
             }
         }
 
-        let lastIndex = 0;
+        let baseIndex = 0;
         if (lastRegularPaidName && team.includes(lastRegularPaidName)) {
-            lastIndex = team.indexOf(lastRegularPaidName);
+            baseIndex = team.indexOf(lastRegularPaidName);
         }
 
-        for (let i = 1; i <= team.length; i++) {
-            let nextIndex = (lastIndex + i) % team.length;
-            let candidate = team[nextIndex];
+        let regularPaymentsCount = 0;
+        logs.forEach(l => {
+            if (!l.isExtraPay && !l.isAuto) {
+                regularPaymentsCount++;
+            }
+        });
+
+        let currentIndex = baseIndex;
+        for (let s = 0; s < regularPaymentsCount; s++) {
+            currentIndex = (currentIndex + 1) % team.length;
+        }
+
+        for (let i = 0; i < team.length; i++) {
+            let candidate = team[(currentIndex + i) % team.length];
             if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
-                pinnedTodayPerson = candidate;
-                pinnedDateStr = todayStr;
                 return candidate;
             }
         }
 
         resetCurrentRoundIfAllPaid();
 
-        for (let i = 0; i < team.length; i++) {
-            let candidate = team[i];
-            if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
-                pinnedTodayPerson = candidate;
-                pinnedDateStr = todayStr;
-                return candidate;
-            }
-        }
-
         let fallback = team.find(name => !isUnavailable(name)) || team[0];
-        pinnedTodayPerson = fallback;
-        pinnedDateStr = todayStr;
         return fallback;
     }
 
@@ -1008,17 +1007,6 @@
         let givenIndex = team.indexOf(givenName);
         if (givenIndex === -1) givenIndex = 0;
 
-        let tempPaidState = {...currentRoundPaid};
-        tempPaidState[givenName] = true;
-
-        for (let i = 1; i <= team.length; i++) {
-            let nextIndex = (givenIndex + i) % team.length;
-            let candidate = team[nextIndex];
-            if (!isUnavailable(candidate) && !tempPaidState[candidate]) {
-                return candidate;
-            }
-        }
-        
         for (let i = 1; i <= team.length; i++) {
             let nextIndex = (givenIndex + i) % team.length;
             let candidate = team[nextIndex];
@@ -1078,7 +1066,7 @@
         const tomorrowPerson = getPersonAfter(scheduledPerson);
 
         document.getElementById('nextPerson').innerText = manualSelectedPerson;
-        document.getElementById('tomorrowIndicator').innerText = `Jutri je na vrsti: ${tomorrowPerson}`;
+        document.getElementById('tomorrowIndicator').innerText = `Naslednji v vrsti: ${tomorrowPerson}`;
 
         const cardsContainer = document.getElementById('cards');
         cardsContainer.innerHTML = '';
@@ -1167,12 +1155,12 @@
         if (personToConfirm === "-") return;
         
         if (confirm(`Ali potrjuješ, da je ${personToConfirm} danes častil kavo?`)) {
-            // Poskrbimo, da oseba ostane na vrsti cel dan, tudi ko potrdi
-            pinnedTodayPerson = personToConfirm;
-            pinnedDateStr = new Date().toDateString();
-
             temporaryVolunteerToday = null; 
             forcedNextPerson = null;
+            
+            confirmedDateStr = new Date().toDateString();
+            confirmedPersonName = personToConfirm;
+
             addPayment(personToConfirm, false, false);
             manualSelectedPerson = null; 
         }
@@ -1187,7 +1175,6 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
-            pinnedTodayPerson = null; // Zrušimo pin, da takoj najde naslednjega prisotnega za danes
 
             logActivity(`Sodelavec ${scheduledPerson} označen kot začasno odsoten preko gumba "Danes ne morem"`);
 
@@ -1212,7 +1199,6 @@
             forcedNextPerson = name;
         }
         manualSelectedPerson = null;
-        pinnedTodayPerson = null;
 
         logActivity(`Spremenjen status za ${name} (Klasičen dopust: ${absent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
@@ -1229,7 +1215,6 @@
             forcedNextPerson = name;
         }
         manualSelectedPerson = null;
-        pinnedTodayPerson = null;
         
         logActivity(`Spremenjen status za ${name} (Začasna odsotnost: ${tempAbsent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
@@ -1288,8 +1273,10 @@
                     document.getElementById('volunteerSelector').style.display = 'none';
                     temporaryVolunteerToday = name;
                     manualSelectedPerson = name;
-                    pinnedTodayPerson = name;
-                    pinnedDateStr = new Date().toDateString();
+                    
+                    confirmedDateStr = new Date().toDateString();
+                    confirmedPersonName = name;
+
                     addPayment(name, true, true);
                     manualSelectedPerson = null;
                 }
@@ -1350,7 +1337,10 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
-            pinnedTodayPerson = null;
+            
+            confirmedDateStr = "";
+            confirmedPersonName = "";
+
             logActivity(`Razveljavljena zadnja častitev za: ${last.name}`);
             render();
             renderAdminData();
@@ -1387,8 +1377,6 @@
         }
         forcedNextPerson = name;
         manualSelectedPerson = name;
-        pinnedTodayPerson = name;
-        pinnedDateStr = new Date().toDateString();
         logActivity(`Ročno nastavljeno, da je naslednji na vrsti: ${name}`);
         
         renderAdminData();
@@ -1537,7 +1525,6 @@
             delete currentRoundPaid[name];
             if (forcedNextPerson === name) forcedNextPerson = null;
             if (manualSelectedPerson === name) manualSelectedPerson = null;
-            if (pinnedTodayPerson === name) pinnedTodayPerson = null;
 
             logActivity(`Odstranjen sodelavec: ${name}`);
 
@@ -1627,8 +1614,8 @@
             temporaryVolunteerToday = null;
             forcedNextPerson = null;
             manualSelectedPerson = null;
-            pinnedTodayPerson = null;
-            pinnedDateStr = "";
+            confirmedDateStr = "";
+            confirmedPersonName = "";
 
             logActivity("⚠️ Izvedena ponastavitev baze!");
             render();

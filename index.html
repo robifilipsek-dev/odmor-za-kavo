@@ -785,6 +785,7 @@
         document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
         logActivity(`Uporabnik ${loggedInUser} se je prijavil v aplikacijo.`);
+        pushData();
     }
 
     function promptChangeUser() {
@@ -794,8 +795,7 @@
     function logActivity(text) {
         const now = new Date();
         const timeStr = now.toLocaleDateString('sl-SI') + ' ob ' + now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'});
-        const actor = loggedInUser ? ` [${loggedInUser}]` : "";
-        appActivities.push({ action: text + actor, date: timeStr });
+        appActivities.push({ action: text, date: timeStr });
         if (appActivities.length > 50) appActivities.shift();
     }
 
@@ -1300,7 +1300,7 @@
         const dayOfWeek = new Date().getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
             if (!isAutomatic) {
-                alert("Danes je vikend! Obvestil na Teams se med vikendom ne pošilja.");
+                alert("Danes je vikend! Obvestil na Teams se med vikendam ne pošilja.");
             }
             return;
         }

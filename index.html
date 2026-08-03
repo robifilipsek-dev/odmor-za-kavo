@@ -260,7 +260,7 @@
             border: 1px solid #e1dcd5;
             border-radius: 12px;
             padding: 10px;
-            height: 90px;
+            height: 95px;
             text-align: left;
             display: flex;
             flex-direction: column;
@@ -362,8 +362,8 @@
             background: #ffffff;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
-            padding: 4px 4px;
-            font-size: 9px;
+            padding: 4px 2px;
+            font-size: 8.5px;
             font-weight: 700;
             cursor: pointer;
             box-shadow: 0 2px 0 #cbd5e1;
@@ -635,7 +635,7 @@
         <div id="settingsView" style="display: none;">
             <div class="admin-section" style="border-top: none; padding-top: 0;">
                 <h3>📊 Urejanje članov, števcev in vrstnega reda</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Skrbnik lahko neposredno prilagodi števce, nastavi naslednjega na vrsti, preklopi dopust ali premika člane.</p>
+                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Skrbnik lahko neposredno prilagodi števce, nastavi naslednjega na vrsti, preklopi dopust ali označi status "Že dal" v trenutnem krogu.</p>
                 <div style="overflow-x: auto;">
                     <table class="member-table">
                         <thead>
@@ -644,7 +644,8 @@
                                 <th>Štev.</th>
                                 <th>Bilanca</th>
                                 <th>Dopust</th>
-                                <th>Akcije (Urejanje / Vrstni red)</th>
+                                <th>Trenutni krog</th>
+                                <th>Akcije</th>
                             </tr>
                         </thead>
                         <tbody id="adminTableBody"></tbody>
@@ -745,7 +746,7 @@
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
-            logActivity(`Sistem: Nova polnoč (00:00) prestopila. Začasne odsotnosti ponastavljene.`);
+            logActivity(`Sistem: Nova polnoč (00:00) prestopila. Sistem se je premaknil na naslednjega v vrsti (krog ostaja ohranjen).`);
             render();
             pushData();
         }
@@ -1001,7 +1002,7 @@
         const allPresentPaid = presentMembers.every(name => currentRoundPaid[name] === true);
         if (allPresentPaid) {
             const now = new Date();
-            const dateStr = now.toLocaleDateString('sl-SI') + ' (Avto - Odsotnost)';
+            const dateStr = now.toLocaleDateString('sl-SI') + ' (Avto - Krog zaključen)';
             
             const absentMembers = team.filter(name => isUnavailable(name));
             absentMembers.forEach(absentName => {
@@ -1103,6 +1104,9 @@
                     <button class="toggle-absent-btn" style="background:${isTempAb ? '#fef3c7' : '#ffffff'}; border-color:${isTempAb ? '#f59e0b' : '#cbd5e1'}; color:${isTempAb ? '#b45309' : 'inherit'}" onclick="toggleTempAbsent('${name}'); event.stopPropagation();" title="Začasna odsotnost">
                         ${isTempAb ? '👤 Vrni' : '⏳ Ni tu'}
                     </button>
+                    <button class="toggle-absent-btn" style="background:${currentRoundPaid[name] ? '#e0f2fe' : '#ffffff'}; border-color:${currentRoundPaid[name] ? '#3498db' : '#cbd5e1'}; color:${currentRoundPaid[name] ? '#0369a1' : 'inherit'}" onclick="toggleRoundPaidDirect('${name}'); event.stopPropagation();" title="Označi ali je že dal v tem krogu">
+                        ${currentRoundPaid[name] ? '✓ Dal' : '☕ Dal?'}
+                    </button>
                 </div>
             `;
 
@@ -1110,6 +1114,18 @@
         });
 
         renderVolunteerGrid();
+    }
+
+    function toggleRoundPaidDirect(name) {
+        currentRoundPaid[name] = !currentRoundPaid[name];
+        if (currentRoundPaid[name]) {
+            logActivity(`Ročno označeno (preko kartice), da je ${name} že dal za kavo v tem krogu.`);
+        } else {
+            logActivity(`Ročno odstranjena označba 'že dal' za ${name} v tem krogu.`);
+        }
+        render();
+        renderAdminData();
+        pushData();
     }
 
     function confirmPaymentForSelected() {
@@ -1320,7 +1336,6 @@
         pushData();
     }
 
-    // POPRAVLJENA FUNKCIJA ZA NASTAVITEV NASLEDNJEGA
     function setForcedNext(name) {
         if (isUnavailable(name)) {
             alert("Ne moreš nastaviti osebe, ki je trenutno odsotna!");
@@ -1332,7 +1347,7 @@
         
         renderAdminData();
         render();
-        pushData(); // Shrani spremembo v bazo (JSONBin)
+        pushData();
         
         alert(`Uspešno nastavljeno. Naslednji na vrsti je zdaj ${name}.`);
     }
@@ -1353,6 +1368,7 @@
             const isAb = absent[name] || false;
             const isTempAb = tempAbsent[name] || false;
             const isNext = (name === getNextPerson());
+            const hasPaidInRound = currentRoundPaid[name] || false;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1379,6 +1395,11 @@
                     </div>
                 </td>
                 <td>
+                    <button style="font-size:9px; padding:3px 6px; cursor:pointer; background:${hasPaidInRound ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${hasPaidInRound ? '#3498db' : '#cbd5e1'}; border-radius:4px; font-weight:700; color:${hasPaidInRound ? '#0369a1' : '#64748b'};" onclick="toggleRoundPaidDirect('${name}'); renderAdminData();" title="Klikni za preklop statusa v tem krogu">
+                        ${hasPaidInRound ? '✓ Že dal' : '✗ Ni še'}
+                    </button>
+                </td>
+                <td>
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                         <button style="font-size:10px; padding:2px 5px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐ Naslednji</button>
                         <button style="background:none; border:none; cursor:pointer;" onclick="moveMember(${index}, -1)" title="Premakni gor">⬆️</button>
@@ -1398,7 +1419,7 @@
             item.className = 'log-item';
             item.innerHTML = `
                 <div class="log-item-header">
-                    <span><b>${entry.name}</b> ${entry.isExtraPay ? '<small style="color:#e67e22;">(Izven vrstnega reda)</small>' : (entry.isAuto ? '<small style="color:#3498db;">(Avto - Odsotnost)</small>' : '')} <small style="color:#666;">(Urejal: ${entry.actor || 'Neznano'})</small></span> 
+                    <span><b>${entry.name}</b> ${entry.isExtraPay ? '<small style="color:#e67e22;">(Izven vrstnega reda)</small>' : (entry.isAuto ? '<small style="color:#3498db;">(Avto - Odsotnost)</small> ' : '')} <small style="color:#666;">(Urejal: ${entry.actor || 'Neznano'})</small></span> 
                     <span style="color:#7f8c8d;">${entry.date}</span>
                 </div>
             `;
@@ -1499,8 +1520,8 @@
     }
 
     function checkPassword() {
-        const pass = document.getElementById('passInput').value;
-        if (pass === 'geslo') {
+        const passwordValue = document.getElementById('passInput').value;
+        if (passwordValue === 'geslo') {
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
             

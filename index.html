@@ -260,7 +260,7 @@
             border: 1px solid #e1dcd5;
             border-radius: 12px;
             padding: 10px;
-            height: 90px; /* Nekoliko višje zaradi datuma */
+            height: 90px;
             text-align: left;
             display: flex;
             flex-direction: column;
@@ -433,7 +433,6 @@
             box-shadow: 0 0 0 #cbd5e1;
         }
 
-        /* Login Modal Overlay */
         .login-overlay {
             display: flex;
             position: fixed;
@@ -557,7 +556,6 @@
 </head>
 <body>
 
-<!-- Login / Izbira osebe ob zagonu -->
 <div class="login-overlay" id="loginOverlay" style="display: none;">
     <div class="login-card">
         <h2>☕ Kdo se prijavlja?</h2>
@@ -728,26 +726,22 @@
     let forcedNextPerson = null;
     let manualSelectedPerson = null;
 
-    // Posodabljanje ure in datuma v živo
     function updateDateTime() {
         const now = new Date();
         document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
         
-        // Prikaz dneva v tednu in datuma (npr. "pon., 3. 8. 2026")
         const options = { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' };
         document.getElementById('liveDate').innerText = now.toLocaleDateString('sl-SI', options);
         
-        // Preverjanje polnoči (00:00) med delovanjem aplikacije
         checkMidnightRollover();
     }
 
     setInterval(updateDateTime, 1000);
-    updateDateTime(); // Takojšnji zagon ob nalaganju
+    updateDateTime();
 
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
-            // Nova polnoč je mimo! Ponastavi dnevne začasne odsotnosti
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
@@ -875,7 +869,6 @@
                 lastRecordedDate = todayStr;
                 localStorage.setItem('lastRecordedDate', todayStr);
             } else if (lastRecordedDate !== todayStr) {
-                // Prehod čez polnoč potrjen s strežnika
                 Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
                 lastRecordedDate = todayStr;
                 localStorage.setItem('lastRecordedDate', todayStr);
@@ -1031,7 +1024,6 @@
         resetCurrentRoundIfAllPaid();
     }
 
-    // Pomožna funkcija za iskanje zadnjega datuma, ko je oseba dala za kavo
     function getLastPaymentDate(name) {
         for (let i = logs.length - 1; i >= 0; i--) {
             if (logs[i].name === name && !logs[i].isAuto) {
@@ -1077,7 +1069,6 @@
                 badgeHtml = `<span class="badge badge-turn">Na vrsti</span>`;
             }
 
-            // Pridobitev datuma zadnjega plačila
             const lastDate = getLastPaymentDate(name);
             let subInfoHtml = '';
             if (currentRoundPaid[name] && lastDate) {
@@ -1249,10 +1240,9 @@
     }
 
     function sendVolunteerNotification(name) {
-        // Preverimo, če je vikend (nedelja = 0, sobota = 6)
         const dayOfWeek = new Date().getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
-            return; // Med vikendom ne pošiljaj obvestil
+            return;
         }
 
         const title = "☕ ODMOR ZA KAVO ☕";
@@ -1261,7 +1251,6 @@
     }
 
     function triggerTeamsNotification(isAutomatic = false) {
-        // Preverimo, če je vikend (nedelja = 0, sobota = 6)
         const dayOfWeek = new Date().getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
             if (!isAutomatic) {
@@ -1331,6 +1320,7 @@
         pushData();
     }
 
+    // POPRAVLJENA FUNKCIJA ZA NASTAVITEV NASLEDNJEGA
     function setForcedNext(name) {
         if (isUnavailable(name)) {
             alert("Ne moreš nastaviti osebe, ki je trenutno odsotna!");
@@ -1339,9 +1329,12 @@
         forcedNextPerson = name;
         manualSelectedPerson = name;
         logActivity(`Ročno nastavljeno, da je naslednji na vrsti: ${name}`);
-        alert(`Uspešno nastavljeno. Naslednji na vrsti je zdaj ${name}.`);
+        
         renderAdminData();
         render();
+        pushData(); // Shrani spremembo v bazo (JSONBin)
+        
+        alert(`Uspešno nastavljeno. Naslednji na vrsti je zdaj ${name}.`);
     }
 
     function renderAdminData() {

@@ -260,7 +260,7 @@
             border: 1px solid #e1dcd5;
             border-radius: 12px;
             padding: 10px;
-            height: 82px;
+            height: 90px; /* Nekoliko višje zaradi datuma */
             text-align: left;
             display: flex;
             flex-direction: column;
@@ -342,6 +342,16 @@
         .badge-temp { background: #d97706; }
         .badge-selected { background: #3498db; }
         
+        .card-subinfo {
+            font-size: 9px;
+            color: #7f8c8d;
+            margin-top: 2px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .card-actions-row {
             display: flex;
             gap: 4px;
@@ -1021,6 +1031,16 @@
         resetCurrentRoundIfAllPaid();
     }
 
+    // Pomožna funkcija za iskanje zadnjega datuma, ko je oseba dala za kavo
+    function getLastPaymentDate(name) {
+        for (let i = logs.length - 1; i >= 0; i--) {
+            if (logs[i].name === name && !logs[i].isAuto) {
+                return logs[i].date;
+            }
+        }
+        return null;
+    }
+
     function render() {
         const scheduledPerson = getNextPerson();
         
@@ -1057,6 +1077,15 @@
                 badgeHtml = `<span class="badge badge-turn">Na vrsti</span>`;
             }
 
+            // Pridobitev datuma zadnjega plačila
+            const lastDate = getLastPaymentDate(name);
+            let subInfoHtml = '';
+            if (currentRoundPaid[name] && lastDate) {
+                subInfoHtml = `<div class="card-subinfo">📅 ${lastDate}</div>`;
+            } else {
+                subInfoHtml = `<div class="card-subinfo" style="visibility:hidden;">-</div>`;
+            }
+
             const card = document.createElement('div');
             card.className = `info-card ${isAb ? 'absent' : (isTempAb ? 'temp-absent' : '')} ${isTurn ? 'is-turn' : ''} ${isSelected ? 'is-selected' : ''}`;
             
@@ -1071,7 +1100,10 @@
             card.innerHTML = `
                 <div class="card-header">
                     <span class="card-name">${name}</span>
-                    <div>${badgeHtml}</div>
+                    <div style="display:flex; flex-direction:column; width:100%;">
+                        <div>${badgeHtml}</div>
+                        ${subInfoHtml}
+                    </div>
                 </div>
                 <div class="card-actions-row">
                     <button class="toggle-absent-btn" onclick="toggleAbsent('${name}'); event.stopPropagation();" title="Preklopi klasični dopust">
@@ -1217,12 +1249,27 @@
     }
 
     function sendVolunteerNotification(name) {
+        // Preverimo, če je vikend (nedelja = 0, sobota = 6)
+        const dayOfWeek = new Date().getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            return; // Med vikendom ne pošiljaj obvestil
+        }
+
         const title = "☕ ODMOR ZA KAVO ☕";
         const desc = `🎉 Danes kavo časti: **${name}**! Hvala!\n\nSe vidimo ob 12:00!`;
         sendWebhookPayload(title, desc);
     }
 
     function triggerTeamsNotification(isAutomatic = false) {
+        // Preverimo, če je vikend (nedelja = 0, sobota = 6)
+        const dayOfWeek = new Date().getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            if (!isAutomatic) {
+                alert("Danes je vikend! Obvestil na Teams se med vikendom ne pošilja.");
+            }
+            return;
+        }
+
         if (!WEBHOOK) {
             if (!isAutomatic) alert("Webhook URL ni nastavljen v skrbniških nastavitvah!");
             return;

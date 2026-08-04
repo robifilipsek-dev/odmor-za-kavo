@@ -1019,7 +1019,7 @@
 
         resetCurrentRoundIfAllPaid();
 
-        let fallback = team.find(name => !isUnavailable(name)) || team[0];
+        let fallback = team.find(name => !isUnavailable(name) && !currentRoundPaid[name]) || team.find(name => !isUnavailable(name)) || team[0];
         return fallback;
     }
 
@@ -1028,6 +1028,13 @@
         let givenIndex = team.indexOf(givenName);
         if (givenIndex === -1) givenIndex = 0;
 
+        for (let i = 1; i <= team.length; i++) {
+            let nextIndex = (givenIndex + i) % team.length;
+            let candidate = team[nextIndex];
+            if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
+                return candidate;
+            }
+        }
         for (let i = 1; i <= team.length; i++) {
             let nextIndex = (givenIndex + i) % team.length;
             let candidate = team[nextIndex];
@@ -1071,11 +1078,11 @@
     function render() {
         const scheduledPerson = getNextPerson();
         
-        if (!manualSelectedPerson || isUnavailable(manualSelectedPerson)) {
+        if (!manualSelectedPerson || isUnavailable(manualSelectedPerson) || currentRoundPaid[manualSelectedPerson]) {
             manualSelectedPerson = temporaryVolunteerToday || scheduledPerson;
         }
 
-        const tomorrowPerson = getPersonAfter(scheduledPerson);
+        const tomorrowPerson = getPersonAfter(manualSelectedPerson !== "-" ? manualSelectedPerson : scheduledPerson);
 
         document.getElementById('nextPerson').innerText = manualSelectedPerson;
         document.getElementById('tomorrowIndicator').innerText = `Naslednji v vrsti: ${tomorrowPerson}`;
@@ -1158,6 +1165,7 @@
         } else {
             logActivity(`Ročno odstranjena označba 'že dal' za ${name} v tem krogu.`);
         }
+        manualSelectedPerson = null;
         render();
         renderAdminData();
         pushData();
@@ -1277,7 +1285,7 @@
         if (!grid) return;
         grid.innerHTML = '';
 
-        const activeTeam = team.filter(m => !isUnavailable(m));
+        const activeTeam = team.filter(m => !isUnavailable(m) && !currentRoundPaid[m]);
 
         activeTeam.forEach(name => {
             const btn = document.createElement('button');

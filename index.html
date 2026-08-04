@@ -712,7 +712,6 @@
     </div>
 </div>
 
-<!-- Modal za ponovno preverjanje gesla ob ponastavitvi -->
 <div class="modal-overlay" id="resetAuthOverlay" style="display: none; z-index: 2500;">
     <div class="login-card">
         <h2>⚠️ Potrditev ponastavitve</h2>
@@ -768,11 +767,11 @@
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
+            // Samo osvežimo začasne odsotnosti za nov dan, ničesar ne brišemo ali resetiramo!
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
 
-            logActivity(`Sistem: Nova polnoč (00:00).`);
             render();
             pushData();
         }
@@ -873,7 +872,6 @@
         let timeoutTriggered = false;
         const timer = setTimeout(() => {
             timeoutTriggered = true;
-            console.warn("JSONBin ni odgovoril pravočasno – nalagam lokalno stanje.");
             loadDefaultDataState("⚠️ Časovna prekoračitev baze");
         }, 3000);
 
@@ -912,7 +910,6 @@
         .catch(err => {
             if (timeoutTriggered) return;
             clearTimeout(timer);
-            console.error("Napaka pri branju baze:", err);
             loadDefaultDataState('⚠️ Uporabljam lokalni način');
         });
     }
@@ -1406,7 +1403,6 @@
             lastPaymentDates[name] = "";
             logActivity(`Počiščen zadnji datum za ${name}`);
         } else {
-            // rawVal pride iz <input type="date"> kot "YYYY-MM-DD"
             const parts = rawVal.split('-');
             if (parts.length === 3) {
                 const formatted = `${parseInt(parts[2])}. ${parseInt(parts[1])}. ${parts[0]}`;
@@ -1418,7 +1414,6 @@
         pushData();
     }
 
-    // Pomagalna funkcija za pretvorbo "D. M. LLLL" nazaj v "YYYY-MM-DD" za brskalnikov koledar
     function convertToInputDate(dateStr) {
         if (!dateStr) return '';
         const clean = dateStr.split(' ob ')[0].trim();
@@ -1497,8 +1492,8 @@
                 <td>
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                         <button style="font-size:10px; padding:2px 5px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐ Naslednji</button>
-                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember(${index}, -1)" title="Premakni gor">⬆️</button>
-                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember(${index}, 1)" title="Premakni dol">⬇️</button>
+                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', -1)" title="Premakni gor">⬆️</button>
+                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', 1)" title="Premakni dol">⬇️</button>
                         <button style="background:none; border:none; color:#e74c3c; cursor:pointer;" onclick="removeMember('${name}')" title="Odstrani">🗑️</button>
                     </div>
                 </td>
@@ -1662,8 +1657,8 @@
     }
 
     function verifyAndExecuteReset() {
-        const passVal = document.getElementById('resetPassInput').value;
-        if (passVal === 'geslo') {
+        const val = document.getElementById('resetPassInput').value;
+        if (val === 'geslo') {
             document.getElementById('resetAuthOverlay').style.display = 'none';
             executeResetSelectedData();
         } else {

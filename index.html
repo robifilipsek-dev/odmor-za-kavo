@@ -871,7 +871,6 @@
         }).catch(() => {});
     }
 
-    // Shranjevanje lokalnega dnevnega backupa
     function saveDailyLocalBackup() {
         const backupData = {
             team: team,
@@ -947,7 +946,6 @@
         let timeoutTriggered = false;
         const timer = setTimeout(() => {
             timeoutTriggered = true;
-            // Poskusi naložiti iz lokalnega backupa, če strežnik timeouta
             const localBackup = localStorage.getItem('coffee_app_daily_backup');
             if (localBackup) {
                 try {
@@ -984,7 +982,6 @@
         .then(data => {
             if (timeoutTriggered || !data || !data.record) return;
             
-            // Varnostna varovalka: če strežnik vrne popolnoma prazne podatke, ne povozimo slepo, ampak preverimo
             if (!data.record.counts || Object.keys(data.record.counts).length === 0) {
                 const localBackup = localStorage.getItem('coffee_app_daily_backup');
                 if (localBackup) {
@@ -1034,7 +1031,6 @@
             if (timeoutTriggered) return;
             clearTimeout(timer);
             
-            // Poskusi naložiti lokalni backup ob napaki
             const localBackup = localStorage.getItem('coffee_app_daily_backup');
             if (localBackup) {
                 try {
@@ -1090,7 +1086,6 @@
     function pushData() {
         document.getElementById('status').innerText = '⏳ Shranjevanje...';
         
-        // Pred shranjevanjem vedno osvežimo lokalni dnevni backup
         saveDailyLocalBackup();
 
         fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
@@ -1791,7 +1786,7 @@
 
     function saveConfig() {
         BIN_ID = document.getElementById('binId').value;
-        API_KEY = document.getElementById('apiKey5') || document.getElementById('apiKey').value;
+        API_KEY = document.getElementById('apiKey').value;
         WEBHOOK = document.getElementById('webhookUrl').value;
 
         localStorage.setItem('BIN_ID', BIN_ID);

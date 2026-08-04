@@ -666,6 +666,12 @@
             </div>
 
             <div class="admin-section">
+                <h3>💾 Lokalna varnostna kopija (Backup)</h3>
+                <p style="font-size: 10px; color: #666; margin-bottom: 6px;" id="backupInfoText">Zadnji shranjen lokalni backup: Ni podatka</p>
+                <button class="btn-3d btn-volunteer" style="width:100%; font-size: 11px; padding: 6px;" onclick="restoreFromLocalBackup()">📥 Obnovi podatke iz lokalnega backupa</button>
+            </div>
+
+            <div class="admin-section">
                 <h3>📜 Zgodovina</h3>
                 <div class="log-box" id="adminLog"></div>
             </div>
@@ -865,12 +871,103 @@
         }).catch(() => {});
     }
 
+    // Shranjevanje lokalnega dnevnega backupa
+    function saveDailyLocalBackup() {
+        const backupData = {
+            team: team,
+            counts: counts,
+            absent: absent,
+            tempAbsent: tempAbsent,
+            currentRoundPaid: currentRoundPaid,
+            lastPaymentDates: lastPaymentDates,
+            logs: logs,
+            appActivities: appActivities,
+            teamsLogs: teamsLogs,
+            forcedNextPerson: forcedNextPerson,
+            confirmedDateStr: confirmedDateStr,
+            confirmedPersonName: confirmedPersonName,
+            timestamp: new Date().toLocaleString('sl-SI')
+        };
+        localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
+    }
+
+    function updateBackupInfoUI() {
+        const infoEl = document.getElementById('backupInfoText');
+        if (!infoEl) return;
+        const raw = localStorage.getItem('coffee_app_daily_backup');
+        if (!raw) {
+            infoEl.innerText = "Zadnji shranjen lokalni backup: Ni podatka";
+            return;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            infoEl.innerText = `Zadnji shranjen lokalni backup: ${parsed.timestamp || 'Neznano'}`;
+        } catch(e) {
+            infoEl.innerText = "Zadnji shranjen lokalni backup: Napaka pri branju";
+        }
+    }
+
+    function restoreFromLocalBackup() {
+        const raw = localStorage.getItem('coffee_app_daily_backup');
+        if (!raw) {
+            alert("Lokalni backup ne obstaja!");
+            return;
+        }
+        if (confirm("Ali res želiš obnoviti podatke iz lokalne varnostne kopije? Trenutni podatki na zaslonu bodo prepisani.")) {
+            try {
+                const data = JSON.parse(raw);
+                if (data.team && Array.isArray(data.team)) team = data.team;
+                counts = data.counts || {};
+                absent = data.absent || {};
+                tempAbsent = data.tempAbsent || {};
+                currentRoundPaid = data.currentRoundPaid || {};
+                lastPaymentDates = data.lastPaymentDates || {};
+                logs = data.logs || [];
+                appActivities = data.appActivities || [];
+                teamsLogs = data.teamsLogs || [];
+                forcedNextPerson = data.forcedNextPerson || null;
+                confirmedDateStr = data.confirmedDateStr || "";
+                confirmedPersonName = data.confirmedPersonName || "";
+
+                logActivity("Uspešno obnovljeni podatki iz lokalnega backupa.");
+                render();
+                renderAdminData();
+                pushData();
+                alert("Podatki so bili uspešno obnovljeni iz lokalne varnostne kopije in poslani v bazo!");
+                closeModal();
+            } catch(e) {
+                alert("Napaka pri branju lokalnega backupa!");
+            }
+        }
+    }
+
     function fetchData() {
         document.getElementById('status').innerText = '⏳ Nalaganje...';
 
         let timeoutTriggered = false;
         const timer = setTimeout(() => {
             timeoutTriggered = true;
+            // Poskusi naložiti iz lokalnega backupa, če strežnik timeouta
+            const localBackup = localStorage.getItem('coffee_app_daily_backup');
+            if (localBackup) {
+                try {
+                    const data = JSON.parse(localBackup);
+                    counts = data.counts || {};
+                    absent = data.absent || {};
+                    tempAbsent = data.tempAbsent || {};
+                    currentRoundPaid = data.currentRoundPaid || {};
+                    lastPaymentDates = data.lastPaymentDates || {};
+                    logs = data.logs || [];
+                    appActivities = data.appActivities || [];
+                    teamsLogs = data.teamsLogs || [];
+                    forcedNextPerson = data.forcedNextPerson || null;
+                    confirmedDateStr = data.confirmedDateStr || "";
+                    confirmedPersonName = data.confirmedPersonName || "";
+                    if (data.team && Array.isArray(data.team)) team = data.team;
+                    finalizeDataLoad('⚠️ Uporabljam lokalni backup');
+                    return;
+                } catch(e) {}
+            }
             loadDefaultDataState("⚠️ Časovna prekoračitev baze");
         }, 3000);
 
@@ -886,6 +983,32 @@
         })
         .then(data => {
             if (timeoutTriggered || !data || !data.record) return;
+            
+            // Varnostna varovalka: če strežnik vrne popolnoma prazne podatke, ne povozimo slepo, ampak preverimo
+            if (!data.record.counts || Object.keys(data.record.counts).length === 0) {
+                const localBackup = localStorage.getItem('coffee_app_daily_backup');
+                if (localBackup) {
+                    try {
+                        const parsed = JSON.parse(localBackup);
+                        if (parsed.counts && Object.keys(parsed.counts).length > 0) {
+                            counts = parsed.counts;
+                            absent = parsed.absent || {};
+                            tempAbsent = parsed.tempAbsent || {};
+                            currentRoundPaid = parsed.currentRoundPaid || {};
+                            lastPaymentDates = parsed.lastPaymentDates || {};
+                            logs = parsed.logs || [];
+                            appActivities = parsed.appActivities || [];
+                            teamsLogs = parsed.teamsLogs || [];
+                            forcedNextPerson = parsed.forcedNextPerson || null;
+                            confirmedDateStr = parsed.confirmedDateStr || "";
+                            confirmedPersonName = parsed.confirmedPersonName || "";
+                            if (parsed.team && Array.isArray(parsed.team)) team = parsed.team;
+                            finalizeDataLoad('⚠️ Rešeno iz lokalnega backupa (strežnik prazen)');
+                            return;
+                        }
+                    } catch(e) {}
+                }
+            }
             
             counts = data.record.counts || {};
             absent = data.record.absent || {};
@@ -904,11 +1027,34 @@
                 team = data.record.team;
             }
             
+            saveDailyLocalBackup();
             finalizeDataLoad('✅ Sinhronizirano');
         })
         .catch(err => {
             if (timeoutTriggered) return;
             clearTimeout(timer);
+            
+            // Poskusi naložiti lokalni backup ob napaki
+            const localBackup = localStorage.getItem('coffee_app_daily_backup');
+            if (localBackup) {
+                try {
+                    const data = JSON.parse(localBackup);
+                    counts = data.counts || {};
+                    absent = data.absent || {};
+                    tempAbsent = data.tempAbsent || {};
+                    currentRoundPaid = data.currentRoundPaid || {};
+                    lastPaymentDates = data.lastPaymentDates || {};
+                    logs = data.logs || [];
+                    appActivities = data.appActivities || [];
+                    teamsLogs = data.teamsLogs || [];
+                    forcedNextPerson = data.forcedNextPerson || null;
+                    confirmedDateStr = data.confirmedDateStr || "";
+                    confirmedPersonName = data.confirmedPersonName || "";
+                    if (data.team && Array.isArray(data.team)) team = data.team;
+                    finalizeDataLoad('⚠️ Uporabljam lokalni backup (napaka omrežja)');
+                    return;
+                } catch(e) {}
+            }
             loadDefaultDataState('⚠️ Uporabljam lokalni način');
         });
     }
@@ -943,6 +1089,9 @@
 
     function pushData() {
         document.getElementById('status').innerText = '⏳ Shranjevanje...';
+        
+        // Pred shranjevanjem vedno osvežimo lokalni dnevni backup
+        saveDailyLocalBackup();
 
         fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
             method: 'PUT',
@@ -1555,6 +1704,8 @@
             `;
             teamsContainer.appendChild(item);
         });
+        
+        updateBackupInfoUI();
     }
 
     function addMember() {
@@ -1640,7 +1791,7 @@
 
     function saveConfig() {
         BIN_ID = document.getElementById('binId').value;
-        API_KEY = document.getElementById('apiKey').value;
+        API_KEY = document.getElementById('apiKey5') || document.getElementById('apiKey').value;
         WEBHOOK = document.getElementById('webhookUrl').value;
 
         localStorage.setItem('BIN_ID', BIN_ID);

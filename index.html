@@ -767,7 +767,6 @@
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
-            // Samo osvežimo začasne odsotnosti za nov dan, ničesar ne brišemo ali resetiramo!
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
@@ -1140,9 +1139,6 @@
                     <button class="toggle-absent-btn" style="background:${isTempAb ? '#fef3c7' : '#ffffff'}; border-color:${isTempAb ? '#f59e0b' : '#cbd5e1'}; color:${isTempAb ? '#b45309' : 'inherit'}" onclick="toggleTempAbsent('${name}'); event.stopPropagation();" title="Začasna odsotnost">
                         ${isTempAb ? '👤 Vrni' : '⏳ Ni tu'}
                     </button>
-                    <button class="toggle-absent-btn" style="background:${currentRoundPaid[name] ? '#e0f2fe' : '#ffffff'}; border-color:${currentRoundPaid[name] ? '#3498db' : '#cbd5e1'}; color:${currentRoundPaid[name] ? '#0369a1' : 'inherit'}" onclick="toggleRoundPaidDirect('${name}'); event.stopPropagation();" title="Označi ali je že dal v tem krogu">
-                        ${currentRoundPaid[name] ? '✓ Dal' : '☕ Dal?'}
-                    </button>
                 </div>
             `;
 
@@ -1158,7 +1154,7 @@
             const now = new Date();
             const dateStr = now.toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
             lastPaymentDates[name] = dateStr;
-            logActivity(`Ročno označeno (preko kartice), da je ${name} plačal rundo dne ${dateStr}.`);
+            logActivity(`Ročno označeno (v nastavitvah), da je ${name} plačal rundo dne ${dateStr}.`);
         } else {
             logActivity(`Ročno odstranjena označba 'že dal' za ${name} v tem krogu.`);
         }
@@ -1377,11 +1373,12 @@
     }
 
     function moveMember(index, direction) {
-        const newIndex = index + direction;
+        const idx = parseInt(index);
+        const newIndex = idx + direction;
         if (newIndex < 0 || newIndex >= team.length) return;
         
-        const temp = team[index];
-        team[index] = team[newIndex];
+        const temp = team[idx];
+        team[idx] = team[newIndex];
         team[newIndex] = temp;
 
         logActivity(`Spremenjen vrstni red članov (premaknjen ${temp})`);
@@ -1461,6 +1458,7 @@
             const isNext = (name === getNextPerson());
             const currentSavedDate = lastPaymentDates[name] || '';
             const inputDateVal = convertToInputDate(currentSavedDate);
+            const isPaid = currentRoundPaid[name] || false;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1491,6 +1489,9 @@
                 </td>
                 <td>
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                        <button style="font-size:10px; padding:2px 5px; background:${isPaid ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${isPaid ? '#3498db' : '#cbd5e1'}; border-radius:4px; cursor:pointer; color:${isPaid ? '#0369a1' : 'inherit'};" onclick="toggleRoundPaidDirect('${name}')" title="Označi ali je že dal v tem krogu">
+                            ${isPaid ? '✓ Dal' : '☕ Dal?'}
+                        </button>
                         <button style="font-size:10px; padding:2px 5px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐ Naslednji</button>
                         <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', -1)" title="Premakni gor">⬆️</button>
                         <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', 1)" title="Premakni dol">⬇️</button>

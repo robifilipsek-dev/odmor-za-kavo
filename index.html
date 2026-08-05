@@ -500,7 +500,7 @@
             background: white;
             padding: 20px;
             border-radius: 18px;
-            max-width: 680px;
+            max-width: 720px;
             width: 95%;
             box-shadow: 0 15px 30px rgba(0,0,0,0.15);
             max-height: 85vh;
@@ -524,7 +524,7 @@
         .admin-section h3 { font-size: 13px; margin: 0 0 8px 0; color: var(--primary); font-weight: 800; }
         
         .member-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
-        .member-table th, .member-table td { padding: 6px; text-align: left; border-bottom: 1px solid #eaeaea; vertical-align: middle; }
+        .member-table th, .member-table td { padding: 4px 6px; text-align: left; border-bottom: 1px solid #eaeaea; vertical-align: middle; }
         .member-table th { background: #fdfaf6; color: var(--primary); font-weight: 800; }
 
         .log-box { background: #fdfaf6; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; max-height: 110px; overflow-y: auto; font-size: 11px; }
@@ -593,10 +593,10 @@
     </div>
 
     <div class="next-box">
-        <span>Danes bo kavo častil:</span>
+        <span id="mainTitleLabel">Danes bo kavo častil:</span>
         <strong id="nextPerson">-</strong>
         
-        <div id="tomorrowIndicator" class="tomorrow-indicator">Jutri je na vrsti: -</div>
+        <div id="tomorrowIndicator" class="tomorrow-indicator">Naslednji v vrsti: -</div>
 
         <div class="next-buttons-group">
             <button id="btnConfirmNext" class="btn-3d btn-confirm" onclick="confirmPaymentForSelected()">
@@ -660,7 +660,7 @@
                                 <th>Ime</th>
                                 <th>Štev.</th>
                                 <th>Bilanca</th>
-                                <th>Zadnji datum (Ročno / Samodejno)</th>
+                                <th>Zadnji datum</th>
                                 <th>Dopust</th>
                                 <th>Akcije</th>
                             </tr>
@@ -677,20 +677,23 @@
 
             <div class="admin-section">
                 <h3>💾 Varnostne kopije in prenos podatkov</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="downloadJsonFile()">📥 Prenesi JSON na PC</button>
-                    <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="uploadJsonToJSONBinManual()">☁️ Naloži na JSONBin</button>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-                    <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="restoreFromLocalBackup(0)">🔄 Naloži zadnji backup</button>
-                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz mape na PC</button>
+                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz PC</button>
                     <input type="file" id="fileUploadInput" accept=".json" style="display: none;" onchange="handleFileLoadedFromPC(event)">
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                    <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="uploadJsonToJSONBinManual()">☁️ Naloži na JSONBin</button>
+                    <div></div>
+                </div>
                 <div class="config-field">
-                    <label>Zgodovina zadnjih lokalnih backupov (izberi za obnovitev):</label>
-                    <select id="backupHistorySelect" style="padding: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 11px; background: #fafafa;" onchange="restoreSelectedHistoryBackup(this.value)">
-                        <option value="">-- Izberi prejšnji backup iz zgodovine --</option>
-                    </select>
+                    <label>Zgodovina zadnjih lokalnih backupov:</label>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;">
+                        <select id="backupHistorySelect" style="padding: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 11px; background: #fafafa; width: 100%; box-sizing: border-box;" onchange="restoreSelectedHistoryBackup(this.value)">
+                            <option value="">-- Izberi prejšnji backup iz zgodovine --</option>
+                        </select>
+                        <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px 12px; white-space: nowrap; height: 35px;" onclick="createManualLocalBackup()">💾 Shrani</button>
+                    </div>
                 </div>
             </div>
 
@@ -702,6 +705,12 @@
             <div class="admin-section">
                 <h3>⚡ Aktivnosti</h3>
                 <div class="log-box" id="appActivityLog" style="background: #f8fafc; border-color: #cbd5e1;"></div>
+            </div>
+
+            <div class="admin-section">
+                <h3>👥 Vpisi / Prijave v aplikacijo</h3>
+                <p style="font-size: 10px; color: #666; margin-bottom: 6px;">Pregled točnega časa vpisa in aktivnosti posameznikov v aplikaciji:</p>
+                <div class="log-box" id="appLoginLog" style="background: #f0fdf4; border-color: #bbf7d0;"></div>
             </div>
 
             <div class="admin-section">
@@ -768,9 +777,10 @@
     let lastPaymentDates = {}; 
     let logs = [];
     let appActivities = [];
+    let appLogins = []; 
     let teamsLogs = [];
     let lastRecordedDate = localStorage.getItem('lastRecordedDate') || "";
-    let loggedInUser = localStorage.getItem('loggedInUser') || "";
+    let loggedInUser = "";
 
     let isCooldown = false;
     let temporaryVolunteerToday = null; 
@@ -793,6 +803,12 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            fetchData();
+        }
+    });
+
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
@@ -806,12 +822,7 @@
     }
 
     function checkLogin() {
-        if (!loggedInUser || !team.includes(loggedInUser)) {
-            showLoginModal();
-        } else {
-            document.getElementById('currentLoggedInUser').innerText = loggedInUser;
-            document.getElementById('loginOverlay').style.display = 'none';
-        }
+        showLoginModal();
     }
 
     function showLoginModal() {
@@ -830,10 +841,17 @@
         const select = document.getElementById('loginUserSelect');
         loggedInUser = select.value;
         if (!loggedInUser) return;
-        localStorage.setItem('loggedInUser', loggedInUser);
+        
         document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
+        
+        const now = new Date();
+        const timeStr = now.toLocaleDateString('sl-SI') + ' ob ' + now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        appLogins.push({ user: loggedInUser, date: timeStr });
+        if (appLogins.length > 50) appLogins.shift();
+
         logActivity(`Uporabnik ${loggedInUser} se je prijavil v aplikacijo.`);
+        renderAdminData();
         pushData();
     }
 
@@ -894,7 +912,7 @@
         }).catch(() => {});
     }
 
-    function saveDailyLocalBackup() {
+    function saveDailyLocalBackup(forceManual = false) {
         const backupData = {
             team: team,
             counts: counts,
@@ -904,11 +922,13 @@
             lastPaymentDates: lastPaymentDates,
             logs: logs,
             appActivities: appActivities,
+            appLogins: appLogins,
             teamsLogs: teamsLogs,
             forcedNextPerson: forcedNextPerson,
             confirmedDateStr: confirmedDateStr,
             confirmedPersonName: confirmedPersonName,
-            timestamp: new Date().toLocaleString('sl-SI')
+            timestamp: new Date().toLocaleString('sl-SI'),
+            timeMs: Date.now()
         };
 
         let history = [];
@@ -922,13 +942,30 @@
             history = [];
         }
 
+        if (!forceManual && history.length > 0) {
+            const lastTime = history[0].timeMs || 0;
+            const diffMinutes = (backupData.timeMs - lastTime) / (1000 * 60);
+            if (diffMinutes < 30) {
+                history[0] = backupData;
+                localStorage.setItem('coffee_app_backup_history', JSON.stringify(history));
+                localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
+                return;
+            }
+        }
+
         history.unshift(backupData);
-        if (history.length > 5) {
-            history = history.slice(0, 5);
+        if (history.length > 10) {
+            history = history.slice(0, 10);
         }
 
         localStorage.setItem('coffee_app_backup_history', JSON.stringify(history));
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
+    }
+
+    function createManualLocalBackup() {
+        saveDailyLocalBackup(true);
+        updateBackupHistoryUI();
+        alert("Ročni lokalni backup je bil uspešno shranjen v zgodovino!");
     }
 
     function updateBackupHistoryUI() {
@@ -994,6 +1031,7 @@
                 lastPaymentDates = data.lastPaymentDates || {};
                 logs = data.logs || [];
                 appActivities = data.appActivities || [];
+                appLogins = data.appLogins || [];
                 teamsLogs = data.teamsLogs || [];
                 forcedNextPerson = data.forcedNextPerson || null;
                 confirmedDateStr = data.confirmedDateStr || "";
@@ -1027,6 +1065,7 @@
             lastPaymentDates: lastPaymentDates,
             logs: logs,
             appActivities: appActivities,
+            appLogins: appLogins,
             teamsLogs: teamsLogs,
             forcedNextPerson: forcedNextPerson,
             confirmedDateStr: confirmedDateStr,
@@ -1065,6 +1104,7 @@
                     lastPaymentDates = data.lastPaymentDates || {};
                     logs = data.logs || [];
                     appActivities = data.appActivities || [];
+                    appLogins = data.appLogins || [];
                     teamsLogs = data.teamsLogs || [];
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
@@ -1080,7 +1120,7 @@
             } catch(err) {
                 alert("Napaka pri branju JSON datoteke. Preveri, ali je datoteka ustrezna!");
             }
-            event.target.value = ''; // Ponastavi input
+            event.target.value = ''; 
         };
         reader.readAsText(file);
     }
@@ -1112,6 +1152,7 @@
                     lastPaymentDates = data.lastPaymentDates || {};
                     logs = data.logs || [];
                     appActivities = data.appActivities || [];
+                    appLogins = data.appLogins || [];
                     teamsLogs = data.teamsLogs || [];
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
@@ -1155,6 +1196,7 @@
                             lastPaymentDates = parsed.lastPaymentDates || {};
                             logs = parsed.logs || [];
                             appActivities = parsed.appActivities || [];
+                            appLogins = parsed.appLogins || [];
                             teamsLogs = parsed.teamsLogs || [];
                             forcedNextPerson = parsed.forcedNextPerson || null;
                             confirmedDateStr = parsed.confirmedDateStr || "";
@@ -1174,6 +1216,7 @@
             lastPaymentDates = data.record.lastPaymentDates || {};
             logs = data.record.logs || [];
             appActivities = data.record.appActivities || [];
+            appLogins = data.record.appLogins || [];
             teamsLogs = data.record.teamsLogs || [];
             forcedNextPerson = data.record.forcedNextPerson || null;
             
@@ -1207,6 +1250,7 @@
                     lastPaymentDates = data.lastPaymentDates || {};
                     logs = data.logs || [];
                     appActivities = data.appActivities || [];
+                    appLogins = data.appLogins || [];
                     teamsLogs = data.teamsLogs || [];
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
@@ -1268,6 +1312,7 @@
                 lastPaymentDates: lastPaymentDates,
                 logs: logs,
                 appActivities: appActivities,
+                appLogins: appLogins,
                 teamsLogs: teamsLogs,
                 forcedNextPerson: forcedNextPerson,
                 confirmedDateStr: confirmedDateStr,
@@ -1337,13 +1382,7 @@
         let givenIndex = team.indexOf(givenName);
         if (givenIndex === -1) givenIndex = 0;
 
-        for (let i = 1; i <= team.length; i++) {
-            let nextIndex = (givenIndex + i) % team.length;
-            let candidate = team[nextIndex];
-            if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) {
-                return candidate;
-            }
-        }
+        // Preprosta in 100% zanesljiva logika: vzemi naslednjega na seznamu (krožno)
         for (let i = 1; i <= team.length; i++) {
             let nextIndex = (givenIndex + i) % team.length;
             let candidate = team[nextIndex];
@@ -1351,7 +1390,7 @@
                 return candidate;
             }
         }
-        return "-";
+        return team[(givenIndex + 1) % team.length] || "-";
     }
 
     function resetCurrentRoundIfAllPaid() {
@@ -1393,8 +1432,18 @@
 
         const tomorrowPerson = getPersonAfter(manualSelectedPerson !== "-" ? manualSelectedPerson : scheduledPerson);
 
-        document.getElementById('nextPerson').innerText = manualSelectedPerson;
-        document.getElementById('tomorrowIndicator').innerText = `Naslednji v vrsti: ${tomorrowPerson}`;
+        const todayStr = new Date().toDateString();
+        const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
+
+        if (isAlreadyConfirmedToday) {
+            document.getElementById('mainTitleLabel').innerText = "Jutri bo kavo častil:";
+            document.getElementById('nextPerson').innerText = tomorrowPerson;
+            document.getElementById('tomorrowIndicator').innerText = `Danes je častil: ${confirmedPersonName}`;
+        } else {
+            document.getElementById('mainTitleLabel').innerText = "Danes bo kavo častil:";
+            document.getElementById('nextPerson').innerText = manualSelectedPerson;
+            document.getElementById('tomorrowIndicator').innerText = `Naslednji v vrsti: ${tomorrowPerson}`;
+        }
 
         const cardsContainer = document.getElementById('cards');
         cardsContainer.innerHTML = '';
@@ -1594,7 +1643,7 @@
         if (!grid) return;
         grid.innerHTML = '';
 
-        const activeTeam = team.filter(m => !isUnavailable(m) && !currentRoundPaid[m]);
+        const activeTeam = team.filter(m => !isUnavailable(m));
 
         activeTeam.forEach(name => {
             const btn = document.createElement('button');
@@ -1781,38 +1830,38 @@
             tr.innerHTML = `
                 <td>
                     <b>${name}</b> 
-                    ${isNext ? '<span style="color:#27ae60; font-size:9px; display:block;">(Trenutno naslednji)</span>' : ''}
+                    ${isNext ? '<span style="color:#27ae60; font-size:9px; display:block;">(Naslednji)</span>' : ''}
                 </td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:4px;">
+                    <div style="display:flex; align-items:center; gap:2px;">
                         <span>${cnt}x</span>
-                        <button style="padding:1px 5px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', 1)" title="Povečaj">+</button>
-                        <button style="padding:1px 5px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', -1)" title="Zmanjšaj">-</button>
+                        <button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', 1)" title="Povečaj">+</button>
+                        <button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', -1)" title="Zmanjšaj">-</button>
                     </div>
                 </td>
                 <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
                 <td>
-                    <input type="date" value="${inputDateVal}" style="width: 130px; font-size: 10px; padding: 3px; border:1px solid #ccc; border-radius:4px;" onchange="updateMemberDateManual('${name}', this.value)" title="Izberi datum s koledarjem">
+                    <input type="date" value="${inputDateVal}" style="width: 110px; font-size: 10px; padding: 2px; border:1px solid #ccc; border-radius:4px;" onchange="updateMemberDateManual('${name}', this.value)" title="Izberi datum s koledarjem">
                 </td>
                 <td>
                     <div style="display:flex; gap:2px;">
-                        <button style="font-size:9px; padding:2px 4px; cursor:pointer; background:${isAb ? '#f1f5f9' : '#eafaf1'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleAbsent('${name}'); renderAdminData();" title="Klasičen dopust">
-                            ${isAb ? '🌴 Dopust' : '👤 Delo'}
+                        <button style="font-size:9px; padding:2px 3px; cursor:pointer; background:${isAb ? '#f1f5f9' : '#eafaf1'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleAbsent('${name}'); renderAdminData();" title="Klasičen dopust">
+                            ${isAb ? '🌴' : '👤'}
                         </button>
-                        <button style="font-size:9px; padding:2px 4px; cursor:pointer; background:${isTempAb ? '#fef3c7' : '#f8fafc'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleTempAbsent('${name}'); renderAdminData();" title="Začasna odsotnost">
-                            ${isTempAb ? '⏳ Odsoten' : '👤 Prisoten'}
+                        <button style="font-size:9px; padding:2px 3px; cursor:pointer; background:${isTempAb ? '#fef3c7' : '#f8fafc'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleTempAbsent('${name}'); renderAdminData();" title="Začasna odsotnost">
+                            ${isTempAb ? '⏳' : '👤'}
                         </button>
                     </div>
                 </td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                        <button style="font-size:10px; padding:2px 5px; background:${isPaid ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${isPaid ? '#3498db' : '#cbd5e1'}; border-radius:4px; cursor:pointer; color:${isPaid ? '#0369a1' : 'inherit'};" onclick="toggleRoundPaidDirect('${name}')" title="Označi ali je že dal v tem krogu">
-                            ${isPaid ? '✓ Dal' : '☕ Dal?'}
+                    <div style="display:flex; align-items:center; gap:3px; flex-wrap:nowrap;">
+                        <button style="font-size:9px; padding:2px 4px; background:${isPaid ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${isPaid ? '#3498db' : '#cbd5e1'}; border-radius:4px; cursor:pointer; color:${isPaid ? '#0369a1' : 'inherit'};" onclick="toggleRoundPaidDirect('${name}')" title="Označi ali je že dal v tem krogu">
+                            ${isPaid ? '✓' : '☕'}
                         </button>
-                        <button style="font-size:10px; padding:2px 5px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐ Naslednji</button>
-                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', -1)" title="Premakni gor">⬆️</button>
-                        <button style="background:none; border:none; cursor:pointer;" onclick="moveMember('${index}', 1)" title="Premakni dol">⬇️</button>
-                        <button style="background:none; border:none; color:#e74c3c; cursor:pointer;" onclick="removeMember('${name}')" title="Odstrani">🗑️</button>
+                        <button style="font-size:9px; padding:2px 4px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐</button>
+                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', -1)" title="Premakni gor">⬆️</button>
+                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', 1)" title="Premakni dol">⬇️</button>
+                        <button style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:11px; padding:0;" onclick="removeMember('${name}')" title="Odstrani">🗑️</button>
                     </div>
                 </td>
             `;
@@ -1847,6 +1896,21 @@
                 </div>
             `;
             activityContainer.appendChild(item);
+        });
+
+        const loginContainer = document.getElementById('appLoginLog');
+        loginContainer.innerHTML = appLogins.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih vpisov.</i>' : '';
+
+        appLogins.slice().reverse().forEach(lg => {
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `
+                <div class="log-item-header">
+                    <span>Uporabnik: <b>${lg.user}</b> se je vpisal v aplikacijo</span>
+                    <span style="color:#16a34a; font-size:10px; font-weight:700;">${lg.date}</span>
+                </div>
+            `;
+            loginContainer.appendChild(item);
         });
 
         const teamsContainer = document.getElementById('teamsMessageLog');

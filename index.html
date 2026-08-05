@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>☕ Odmor za kavo</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3d2b1f">
     <style>
         :root {
             --bg-color: #f4f6f8;
@@ -1382,7 +1384,6 @@
         let givenIndex = team.indexOf(givenName);
         if (givenIndex === -1) givenIndex = 0;
 
-        // Preprosta in 100% zanesljiva logika: vzemi naslednjega na seznamu (krožno)
         for (let i = 1; i <= team.length; i++) {
             let nextIndex = (givenIndex + i) % team.length;
             let candidate = team[nextIndex];

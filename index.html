@@ -208,6 +208,16 @@
         }
         .btn-teams:active { box-shadow: 0 1px 0 #2f3480; }
 
+        .btn-file-action {
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            color: var(--primary);
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            padding: 8px;
+            box-shadow: 0 3px 0 #94a3b8;
+        }
+        .btn-file-action:active { box-shadow: 0 1px 0 #94a3b8; }
+
         .volunteer-selector {
             display: none;
             background: #ffffff;
@@ -666,9 +676,20 @@
             </div>
 
             <div class="admin-section">
-                <h3>💾 Lokalna varnostna kopija (Backup)</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 6px;" id="backupInfoText">Zadnji shranjen lokalni backup: Ni podatka</p>
-                <button class="btn-3d btn-volunteer" style="width:100%; font-size: 11px; padding: 6px;" onclick="restoreFromLocalBackup()">📥 Obnovi podatke iz lokalnega backupa</button>
+                <h3>💾 Varnostne kopije in prenos podatkov</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="downloadJsonFile()">📥 Prenesi JSON na PC</button>
+                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="pickDirectoryAndSave()">📂 Izberi mapo / Shrani</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px;">
+                    <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="restoreFromLocalBackup(0)">🔄 Naloži zadnji backup</button>
+                </div>
+                <div class="config-field">
+                    <label>Zgodovina zadnjih lokalnih backupov (izberi za obnovitev):</label>
+                    <select id="backupHistorySelect" style="padding: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 11px; background: #fafafa;" onchange="restoreSelectedHistoryBackup(this.value)">
+                        <option value="">-- Izberi prejšnji backup iz zgodovine --</option>
+                    </select>
+                </div>
             </div>
 
             <div class="admin-section">
@@ -887,34 +908,82 @@
             confirmedPersonName: confirmedPersonName,
             timestamp: new Date().toLocaleString('sl-SI')
         };
+
+        let history = [];
+        try {
+            const rawHistory = localStorage.getItem('coffee_app_backup_history');
+            if (rawHistory) {
+                history = JSON.parse(rawHistory);
+                if (!Array.isArray(history)) history = [];
+            }
+        } catch(e) {
+            history = [];
+        }
+
+        history.unshift(backupData);
+        if (history.length > 5) {
+            history = history.slice(0, 5);
+        }
+
+        localStorage.setItem('coffee_app_backup_history', JSON.stringify(history));
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
     }
 
-    function updateBackupInfoUI() {
-        const infoEl = document.getElementById('backupInfoText');
-        if (!infoEl) return;
-        const raw = localStorage.getItem('coffee_app_daily_backup');
-        if (!raw) {
-            infoEl.innerText = "Zadnji shranjen lokalni backup: Ni podatka";
+    function updateBackupHistoryUI() {
+        const selectEl = document.getElementById('backupHistorySelect');
+        if (!selectEl) return;
+
+        selectEl.innerHTML = '<option value="">-- Izberi prejšnji backup iz zgodovine --</option>';
+        
+        let history = [];
+        try {
+            const rawHistory = localStorage.getItem('coffee_app_backup_history');
+            if (rawHistory) {
+                history = JSON.parse(rawHistory);
+            }
+        } catch(e) {}
+
+        if (history.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = "";
+            opt.innerText = "Ni shranjenih backupov v zgodovini";
+            opt.disabled = true;
+            selectEl.appendChild(opt);
             return;
         }
-        try {
-            const parsed = JSON.parse(raw);
-            infoEl.innerText = `Zadnji shranjen lokalni backup: ${parsed.timestamp || 'Neznano'}`;
-        } catch(e) {
-            infoEl.innerText = "Zadnji shranjen lokalni backup: Napaka pri branju";
-        }
+
+        history.forEach((item, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.innerText = `Backup #${index + 1} (${item.timestamp || 'Neznano'})`;
+            selectEl.appendChild(opt);
+        });
     }
 
-    function restoreFromLocalBackup() {
-        const raw = localStorage.getItem('coffee_app_daily_backup');
-        if (!raw) {
-            alert("Lokalni backup ne obstaja!");
+    function restoreFromLocalBackup(index = 0) {
+        let history = [];
+        try {
+            const rawHistory = localStorage.getItem('coffee_app_backup_history');
+            if (rawHistory) history = JSON.parse(rawHistory);
+        } catch(e) {}
+
+        if (history.length === 0) {
+            const rawSingle = localStorage.getItem('coffee_app_daily_backup');
+            if (rawSingle) {
+                try {
+                    history.push(JSON.parse(rawSingle));
+                } catch(e) {}
+            }
+        }
+
+        if (history.length === 0 || !history[index]) {
+            alert("Izbrani lokalni backup ne obstaja!");
             return;
         }
-        if (confirm("Ali res želiš obnoviti podatke iz lokalne varnostne kopije? Trenutni podatki na zaslonu bodo prepisani.")) {
+
+        if (confirm(`Ali res želiš obnoviti podatke iz backupa #${index + 1} (${history[index].timestamp || ''})? Trenutni podatki na zaslonu bodo prepisani.`)) {
             try {
-                const data = JSON.parse(raw);
+                const data = history[index];
                 if (data.team && Array.isArray(data.team)) team = data.team;
                 counts = data.counts || {};
                 absent = data.absent || {};
@@ -928,7 +997,7 @@
                 confirmedDateStr = data.confirmedDateStr || "";
                 confirmedPersonName = data.confirmedPersonName || "";
 
-                logActivity("Uspešno obnovljeni podatki iz lokalnega backupa.");
+                logActivity(`Uspešno obnovljeni podatki iz lokalnega backupa #${index + 1}.`);
                 render();
                 renderAdminData();
                 pushData();
@@ -940,16 +1009,100 @@
         }
     }
 
+    function restoreSelectedHistoryBackup(val) {
+        if (val === "" || val === null) return;
+        const index = parseInt(val);
+        restoreFromLocalBackup(index);
+    }
+
+    function downloadJsonFile() {
+        const backupData = {
+            team: team,
+            counts: counts,
+            absent: absent,
+            tempAbsent: tempAbsent,
+            currentRoundPaid: currentRoundPaid,
+            lastPaymentDates: lastPaymentDates,
+            logs: logs,
+            appActivities: appActivities,
+            teamsLogs: teamsLogs,
+            forcedNextPerson: forcedNextPerson,
+            confirmedDateStr: confirmedDateStr,
+            confirmedPersonName: confirmedPersonName,
+            timestamp: new Date().toLocaleString('sl-SI')
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        
+        const dateTag = new Date().toISOString().slice(0,10);
+        downloadAnchor.setAttribute("download", `odmor_za_kavo_backup_${dateTag}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+
+        logActivity("Ročno prenesena JSON datoteka stanja na računalnik.");
+        alert("JSON datoteka je bila uspešno prenesena na vaš računalnik!");
+    }
+
+    async function pickDirectoryAndSave() {
+        const backupData = {
+            team: team,
+            counts: counts,
+            absent: absent,
+            tempAbsent: tempAbsent,
+            currentRoundPaid: currentRoundPaid,
+            lastPaymentDates: lastPaymentDates,
+            logs: logs,
+            appActivities: appActivities,
+            teamsLogs: teamsLogs,
+            forcedNextPerson: forcedNextPerson,
+            confirmedDateStr: confirmedDateStr,
+            confirmedPersonName: confirmedPersonName,
+            timestamp: new Date().toLocaleString('sl-SI')
+        };
+
+        if (window.showDirectoryPicker) {
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                const dateTag = new Date().toISOString().slice(0,10);
+                const fileName = `odmor_za_kavo_backup_${dateTag}.json`;
+                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(backupData, null, 2));
+                await writable.close();
+                
+                logActivity(`Uspešno shranjen backup v izbrano mapo na disku (${fileName}).`);
+                alert(`Backup je bil uspešno shranjen v izbrano mapo kot datoteka ${fileName}!`);
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.log("Izbira mape preklicana ali napaka, poskušam klasični prenos.");
+                } else {
+                    return;
+                }
+            }
+        }
+        
+        downloadJsonFile();
+    }
+
     function fetchData() {
         document.getElementById('status').innerText = '⏳ Nalaganje...';
 
         let timeoutTriggered = false;
         const timer = setTimeout(() => {
             timeoutTriggered = true;
-            const localBackup = localStorage.getItem('coffee_app_daily_backup');
-            if (localBackup) {
+            let history = [];
+            try {
+                const rawHistory = localStorage.getItem('coffee_app_backup_history');
+                if (rawHistory) history = JSON.parse(rawHistory);
+            } catch(e) {}
+
+            if (history.length > 0) {
                 try {
-                    const data = JSON.parse(localBackup);
+                    const data = history[0];
                     counts = data.counts || {};
                     absent = data.absent || {};
                     tempAbsent = data.tempAbsent || {};
@@ -983,10 +1136,15 @@
             if (timeoutTriggered || !data || !data.record) return;
             
             if (!data.record.counts || Object.keys(data.record.counts).length === 0) {
-                const localBackup = localStorage.getItem('coffee_app_daily_backup');
-                if (localBackup) {
+                let history = [];
+                try {
+                    const rawHistory = localStorage.getItem('coffee_app_backup_history');
+                    if (rawHistory) history = JSON.parse(rawHistory);
+                } catch(e) {}
+
+                if (history.length > 0) {
                     try {
-                        const parsed = JSON.parse(localBackup);
+                        const parsed = history[0];
                         if (parsed.counts && Object.keys(parsed.counts).length > 0) {
                             counts = parsed.counts;
                             absent = parsed.absent || {};
@@ -1031,10 +1189,15 @@
             if (timeoutTriggered) return;
             clearTimeout(timer);
             
-            const localBackup = localStorage.getItem('coffee_app_daily_backup');
-            if (localBackup) {
+            let history = [];
+            try {
+                const rawHistory = localStorage.getItem('coffee_app_backup_history');
+                if (rawHistory) history = JSON.parse(rawHistory);
+            } catch(e) {}
+
+            if (history.length > 0) {
                 try {
-                    const data = JSON.parse(localBackup);
+                    const data = history[0];
                     counts = data.counts || {};
                     absent = data.absent || {};
                     tempAbsent = data.tempAbsent || {};
@@ -1700,7 +1863,7 @@
             teamsContainer.appendChild(item);
         });
         
-        updateBackupInfoUI();
+        updateBackupHistoryUI();
     }
 
     function addMember() {

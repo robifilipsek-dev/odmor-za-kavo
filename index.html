@@ -679,10 +679,12 @@
                 <h3>💾 Varnostne kopije in prenos podatkov</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="downloadJsonFile()">📥 Prenesi JSON na PC</button>
-                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="pickDirectoryAndSave()">📂 Izberi mapo / Shrani</button>
+                    <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="uploadJsonToJSONBinManual()">☁️ Naloži na JSONBin</button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                     <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px;" onclick="restoreFromLocalBackup(0)">🔄 Naloži zadnji backup</button>
+                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz mape na PC</button>
+                    <input type="file" id="fileUploadInput" accept=".json" style="display: none;" onchange="handleFileLoadedFromPC(event)">
                 </div>
                 <div class="config-field">
                     <label>Zgodovina zadnjih lokalnih backupov (izberi za obnovitev):</label>
@@ -1046,46 +1048,46 @@
         alert("JSON datoteka je bila uspešno prenesena na vaš računalnik!");
     }
 
-    async function pickDirectoryAndSave() {
-        const backupData = {
-            team: team,
-            counts: counts,
-            absent: absent,
-            tempAbsent: tempAbsent,
-            currentRoundPaid: currentRoundPaid,
-            lastPaymentDates: lastPaymentDates,
-            logs: logs,
-            appActivities: appActivities,
-            teamsLogs: teamsLogs,
-            forcedNextPerson: forcedNextPerson,
-            confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName,
-            timestamp: new Date().toLocaleString('sl-SI')
-        };
+    function handleFileLoadedFromPC(event) {
+        const file = event.target.files[0];
+        if (!file) return;
 
-        if (window.showDirectoryPicker) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
             try {
-                const dirHandle = await window.showDirectoryPicker();
-                const dateTag = new Date().toISOString().slice(0,10);
-                const fileName = `odmor_za_kavo_backup_${dateTag}.json`;
-                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-                const writable = await fileHandle.createWritable();
-                await writable.write(JSON.stringify(backupData, null, 2));
-                await writable.close();
-                
-                logActivity(`Uspešno shranjen backup v izbrano mapo na disku (${fileName}).`);
-                alert(`Backup je bil uspešno shranjen v izbrano mapo kot datoteka ${fileName}!`);
-                return;
-            } catch (err) {
-                if (err.name !== 'AbortError') {
-                    console.log("Izbira mape preklicana ali napaka, poskušam klasični prenos.");
-                } else {
-                    return;
+                const data = JSON.parse(e.target.result);
+                if (confirm(`Ali res želiš naložiti podatke iz izbrane datoteke (${file.name})? Trenutno stanje bo prepisano.`)) {
+                    if (data.team && Array.isArray(data.team)) team = data.team;
+                    counts = data.counts || {};
+                    absent = data.absent || {};
+                    tempAbsent = data.tempAbsent || {};
+                    currentRoundPaid = data.currentRoundPaid || {};
+                    lastPaymentDates = data.lastPaymentDates || {};
+                    logs = data.logs || [];
+                    appActivities = data.appActivities || [];
+                    teamsLogs = data.teamsLogs || [];
+                    forcedNextPerson = data.forcedNextPerson || null;
+                    confirmedDateStr = data.confirmedDateStr || "";
+                    confirmedPersonName = data.confirmedPersonName || "";
+
+                    logActivity(`Uspešno naložen backup iz datoteke na PC-ju: ${file.name}`);
+                    render();
+                    renderAdminData();
+                    pushData();
+                    alert("Podatki so bili uspešno naloženi iz računalnika in sinhronizirani z bazo!");
+                    closeModal();
                 }
+            } catch(err) {
+                alert("Napaka pri branju JSON datoteke. Preveri, ali je datoteka ustrezna!");
             }
-        }
-        
-        downloadJsonFile();
+            event.target.value = ''; // Ponastavi input
+        };
+        reader.readAsText(file);
+    }
+
+    function uploadJsonToJSONBinManual() {
+        pushData();
+        alert("Podatki so bili uspešno poslani na JSONBin strežnik!");
     }
 
     function fetchData() {

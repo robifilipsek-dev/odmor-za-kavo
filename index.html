@@ -96,7 +96,6 @@
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
         }
 
-        /* Modro okno za tistega, ki časti kavo (izbrana oseba) na vrhu */
         .selected-box {
             background: linear-gradient(145deg, #ebf8ff, #e1effe);
             border: 1px solid #3498db;
@@ -584,7 +583,6 @@
         </div>
     </div>
 
-    <!-- MODRO OKNO: KAVO ČASTI (IZBRANA OSEBA) NA VRHU -->
     <div class="selected-box">
         <span id="mainTitleLabel">Danes kavo časti:</span>
         <strong id="selectedPerson">-</strong>
@@ -643,7 +641,7 @@
         <div id="settingsView" style="display: none;">
             <div class="admin-section" style="border-top: none; padding-top: 0;">
                 <h3>📊 Urejanje članov, števcev in zadnjih datumov</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Skrbnik lahko prilagodi števce, nastavitve dopustov ali ročno uredi datum zadnjega plačila.</p>
+                <p id="adminPermissionWarning" style="font-size: 11px; color: #e74c3c; font-weight: 700; margin-bottom: 8px; display: none;">⚠️ Opomba: Glavne spremembe (dodajanje, brisanje, ročni popravki) so dovoljene samo uporabniku Filipšek.</p>
                 <div style="overflow-x: auto;">
                     <table class="member-table">
                         <thead>
@@ -660,7 +658,7 @@
                     </table>
                 </div>
 
-                <div style="display:flex; gap:6px; margin-top:8px;">
+                <div id="addMemberSection" style="display:flex; gap:6px; margin-top:8px;">
                     <input type="text" id="newMemberName" placeholder="Ime novega sodelavca" style="flex:1; padding:6px; border:1px solid #ccc; border-radius:6px; font-size:11px;">
                     <button class="btn-3d btn-volunteer" style="padding: 6px 10px; font-size: 11px;" onclick="addMember()">➕ Dodaj</button>
                 </div>
@@ -1001,6 +999,11 @@
     }
 
     function restoreFromLocalBackup(index = 0) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko obnavlja sistemske varnostne kopije!");
+            return;
+        }
+
         let history = [];
         try {
             const rawHistory = localStorage.getItem('coffee_app_backup_history');
@@ -1021,7 +1024,7 @@
             return;
         }
 
-        if (confirm(`Ali res želiš obnoviti podatke iz backupa #${index + 1} (${history[index].timestamp || ''})? Trenutni podatki na zaslonu bodo prepisani.`)) {
+        if (confirm(`Ali res želiš obnoviti podatke iz backupa #${index + 1} (${history[index].timestamp || ''})?`)) {
             try {
                 const data = history[index];
                 if (data.team && Array.isArray(data.team)) team = data.team;
@@ -1045,7 +1048,7 @@
                 render();
                 renderAdminData();
                 pushData();
-                alert("Podatki so bili uspešno obnovljeni iz lokalne varnostne kopije in poslani v bazo!");
+                alert("Podatki so bili uspešno obnovljeni!");
                 closeModal();
             } catch(e) {
                 alert("Napaka pri branju lokalnega backupa!");
@@ -1088,10 +1091,16 @@
         downloadAnchor.remove();
 
         logActivity("Ročno prenesena JSON datoteka stanja na računalnik.");
-        alert("JSON datoteka je bila uspešno prenesena na vaš računalnik!");
+        alert("JSON datoteka je bila uspešno prenesena!");
     }
 
     function handleFileLoadedFromPC(event) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko nalaga nove datoteke v bazo!");
+            event.target.value = '';
+            return;
+        }
+
         const file = event.target.files[0];
         if (!file) return;
 
@@ -1099,7 +1108,7 @@
         reader.onload = function(e) {
             try {
                 const data = JSON.parse(e.target.result);
-                if (confirm(`Ali res želiš naložiti podatke iz izbrane datoteke (${file.name})? Trenutno stanje bo prepisano.`)) {
+                if (confirm(`Ali res želiš naložiti podatke iz datoteke (${file.name})?`)) {
                     if (data.team && Array.isArray(data.team)) team = data.team;
                     counts = data.counts || {};
                     absent = data.absent || {};
@@ -1121,11 +1130,11 @@
                     render();
                     renderAdminData();
                     pushData();
-                    alert("Podatki so bili uspešno naloženi iz računalnika in sinhronizirani z bazo!");
+                    alert("Podatki so bili uspešno naloženi in sinhronizirani z bazo!");
                     closeModal();
                 }
             } catch(err) {
-                alert("Napaka pri branju JSON datoteke. Preveri, ali je datoteka ustrezna!");
+                alert("Napaka pri branju JSON datoteke.");
             }
             event.target.value = ''; 
         };
@@ -1133,6 +1142,10 @@
     }
 
     function uploadJsonToJSONBinManual() {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko ročno osvežuje podatke na strežniku!");
+            return;
+        }
         pushData();
         alert("Podatki so bili uspešno poslani na JSONBin strežnik!");
     }
@@ -1140,81 +1153,16 @@
     function fetchData() {
         document.getElementById('status').innerText = '⏳ Nalaganje...';
 
-        let timeoutTriggered = false;
-        const timer = setTimeout(() => {
-            timeoutTriggered = true;
-            let history = [];
-            try {
-                const rawHistory = localStorage.getItem('coffee_app_backup_history');
-                if (rawHistory) history = JSON.parse(rawHistory);
-            } catch(e) {}
-
-            if (history.length > 0) {
-                try {
-                    const data = history[0];
-                    counts = data.counts || {};
-                    absent = data.absent || {};
-                    tempAbsent = data.tempAbsent || {};
-                    currentRoundPaid = data.currentRoundPaid || {};
-                    lastPaymentDates = data.lastPaymentDates || {};
-                    logs = data.logs || [];
-                    appActivities = data.appActivities || [];
-                    appLogins = data.appLogins || [];
-                    teamsLogs = data.teamsLogs || [];
-                    forcedNextPerson = data.forcedNextPerson || null;
-                    confirmedDateStr = data.confirmedDateStr || "";
-                    confirmedPersonName = data.confirmedPersonName || "";
-                    if (data.team && Array.isArray(data.team)) team = data.team;
-                    finalizeDataLoad('⚠️ Uporabljam lokalni backup');
-                    return;
-                } catch(e) {}
-            }
-            loadDefaultDataState("⚠️ Časovna prekoračitev baze");
-        }, 3000);
-
         fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': API_KEY }
         })
         .then(res => {
-            if (timeoutTriggered) return;
-            clearTimeout(timer);
             if (!res.ok) throw new Error("HTTP napaka " + res.status);
             return res.json();
         })
         .then(data => {
-            if (timeoutTriggered || !data || !data.record) return;
-            
-            if (!data.record.counts || Object.keys(data.record.counts).length === 0) {
-                let history = [];
-                try {
-                    const rawHistory = localStorage.getItem('coffee_app_backup_history');
-                    if (rawHistory) history = JSON.parse(rawHistory);
-                } catch(e) {}
-
-                if (history.length > 0) {
-                    try {
-                        const parsed = history[0];
-                        if (parsed.counts && Object.keys(parsed.counts).length > 0) {
-                            counts = parsed.counts;
-                            absent = parsed.absent || {};
-                            tempAbsent = parsed.tempAbsent || {};
-                            currentRoundPaid = parsed.currentRoundPaid || {};
-                            lastPaymentDates = parsed.lastPaymentDates || {};
-                            logs = parsed.logs || [];
-                            appActivities = parsed.appActivities || [];
-                            appLogins = parsed.appLogins || [];
-                            teamsLogs = parsed.teamsLogs || [];
-                            forcedNextPerson = parsed.forcedNextPerson || null;
-                            confirmedDateStr = parsed.confirmedDateStr || "";
-                            confirmedPersonName = parsed.confirmedPersonName || "";
-                            if (parsed.team && Array.isArray(parsed.team)) team = parsed.team;
-                            finalizeDataLoad('⚠️ Rešeno iz lokalnega backupa (strežnik prazen)');
-                            return;
-                        }
-                    } catch(e) {}
-                }
-            }
+            if (!data || !data.record) return;
             
             counts = data.record.counts || {};
             absent = data.record.absent || {};
@@ -1237,36 +1185,7 @@
             saveDailyLocalBackup();
             finalizeDataLoad('✅ Sinhronizirano');
         })
-        .catch(err => {
-            if (timeoutTriggered) return;
-            clearTimeout(timer);
-            
-            let history = [];
-            try {
-                const rawHistory = localStorage.getItem('coffee_app_backup_history');
-                if (rawHistory) history = JSON.parse(rawHistory);
-            } catch(e) {}
-
-            if (history.length > 0) {
-                try {
-                    const data = history[0];
-                    counts = data.counts || {};
-                    absent = data.absent || {};
-                    tempAbsent = data.tempAbsent || {};
-                    currentRoundPaid = data.currentRoundPaid || {};
-                    lastPaymentDates = data.lastPaymentDates || {};
-                    logs = data.logs || [];
-                    appActivities = data.appActivities || [];
-                    appLogins = data.appLogins || [];
-                    teamsLogs = data.teamsLogs || [];
-                    forcedNextPerson = data.forcedNextPerson || null;
-                    confirmedDateStr = data.confirmedDateStr || "";
-                    confirmedPersonName = data.confirmedPersonName || "";
-                    if (data.team && Array.isArray(data.team)) team = data.team;
-                    finalizeDataLoad('⚠️ Uporabljam lokalni backup (napaka omrežja)');
-                    return;
-                } catch(e) {}
-            }
+        .catch(() => {
             loadDefaultDataState('⚠️ Uporabljam lokalni način');
         });
     }
@@ -1390,21 +1309,6 @@
         return fallback;
     }
 
-    function getPersonAfter(givenName) {
-        if (team.length === 0) return "-";
-        let givenIndex = team.indexOf(givenName);
-        if (givenIndex === -1) givenIndex = 0;
-
-        for (let i = 1; i <= team.length; i++) {
-            let nextIndex = (givenIndex + i) % team.length;
-            let candidate = team[nextIndex];
-            if (!isUnavailable(candidate)) {
-                return candidate;
-            }
-        }
-        return team[(givenIndex + 1) % team.length] || "-";
-    }
-
     function resetCurrentRoundIfAllPaid() {
         const presentMembers = team.filter(name => !isUnavailable(name));
         if (presentMembers.length === 0) return false;
@@ -1425,7 +1329,7 @@
                 currentRoundPaid[name] = false;
             });
             
-            logActivity(`Nov krog kav se je začel (vsi prisotni so oddali svoj krog)!`);
+            logActivity(`Nov krog kav se je začel!`);
             return true;
         }
         return false;
@@ -1445,7 +1349,6 @@
         const todayStr = new Date().toDateString();
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
 
-        // Prikaz v modrem oknu zgoraj (kavo časti / izbrana oseba)
         if (isAlreadyConfirmedToday) {
             document.getElementById('mainTitleLabel').innerText = "Danes kavo časti:";
             document.getElementById('selectedPerson').innerText = confirmedPersonName;
@@ -1523,14 +1426,18 @@
     }
 
     function toggleRoundPaidDirect(name) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko ročno spreminja status plačil ostalih članov!");
+            return;
+        }
         currentRoundPaid[name] = !currentRoundPaid[name];
         if (currentRoundPaid[name]) {
             const now = new Date();
             const dateStr = now.toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
             lastPaymentDates[name] = dateStr;
-            logActivity(`Ročno označeno (v nastavitvah), da je ${name} plačal rundo dne ${dateStr}.`);
+            logActivity(`Ročno označeno, da je ${name} plačal rundo.`);
         } else {
-            logActivity(`Ročno odstranjena označba 'že dal' za ${name} v tem krogu.`);
+            logActivity(`Ročno odstranjena označba 'že dal' za ${name}.`);
         }
         manualSelectedPerson = null;
         render();
@@ -1591,7 +1498,7 @@
         }
         manualSelectedPerson = null;
 
-        logActivity(`Spremenjen status za ${name} (Klasičen dopust: ${absent[name] ? 'DA' : 'NE'})`);
+        logActivity(`Spremenjen status za ${name} (Dopust: ${absent[name] ? 'DA' : 'NE'})`);
         checkRoundCompletion();
         render();
         renderAdminData();
@@ -1630,7 +1537,7 @@
 
         logs.push({ name: name, date: dateStr, isVolunteer: isVolunteer, isExtraPay: isExtraPay, isAuto: false, actor: loggedInUser || 'Neznano' });
 
-        logActivity(`Zabeležena runda za: ${name} ${isExtraPay ? '(Izven vrstnega reda)' : ''} dne ${dateStr}`);
+        logActivity(`Zabeležena runda za: ${name} ${isExtraPay ? '(Izven vrstnega reda)' : ''}`);
 
         checkRoundCompletion();
 
@@ -1683,9 +1590,7 @@
 
     function sendVolunteerNotification(name) {
         const dayOfWeek = new Date().getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            return;
-        }
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
 
         const title = "☕ ODMOR ZA KAVO ☕";
         const desc = `Danes kavo časti: **${name}**`;
@@ -1695,16 +1600,11 @@
     function triggerTeamsNotification(isAutomatic = false) {
         const dayOfWeek = new Date().getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
-            if (!isAutomatic) {
-                alert("Danes je vikend! Obvestil na Teams se med vikendam ne pošilja.");
-            }
+            if (!isAutomatic) alert("Danes je vikend!");
             return;
         }
 
-        if (!WEBHOOK) {
-            if (!isAutomatic) alert("Webhook URL ni nastavljen v skrbniških nastavitvah!");
-            return;
-        }
+        if (!WEBHOOK) return;
 
         const scheduledPerson = getNextPerson();
         const activeToday = manualSelectedPerson || temporaryVolunteerToday || scheduledPerson;
@@ -1715,16 +1615,16 @@
         logActivity(`Poslan opomnik v MS Teams za: ${activeToday}`);
         sendWebhookPayload(title, desc);
         
-        if (!isAutomatic) alert("Opomnik je bil uspešno poslan v Teams!");
+        if (!isAutomatic) alert("Opomnik je bil poslan v Teams!");
     }
 
     function undoLast() {
         if (logs.length === 0) {
-            alert("Ni zabeleženih rund za razveljavitev!");
+            alert("Ni zabeleženih rund!");
             return;
         }
         const last = logs[logs.length - 1];
-        if (confirm(`Želiš razveljaviti zadnji klik za sodelavca ${last.name} (izvedel: ${last.actor || 'Neznano'})?`)) {
+        if (confirm(`Želiš razveljaviti zadnji klik za sodelavca ${last.name}?`)) {
             logs.pop();
             if (counts[last.name] > 0) counts[last.name] -= 1;
             if (!last.isAuto) {
@@ -1748,7 +1648,7 @@
             localStorage.setItem('confirmedDateStr', "");
             localStorage.setItem('confirmedPersonName', "");
 
-            logActivity(`Razveljavljena zadnja evidenca pogostitve za: ${last.name}`);
+            logActivity(`Razveljavljena zadnja evidenca za: ${last.name}`);
             render();
             renderAdminData();
             pushData();
@@ -1756,6 +1656,10 @@
     }
 
     function moveMember(index, direction) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko spreminja vrstni red članov!");
+            return;
+        }
         const idx = parseInt(index);
         const newIndex = idx + direction;
         if (newIndex < 0 || newIndex >= team.length) return;
@@ -1764,30 +1668,33 @@
         team[idx] = team[newIndex];
         team[newIndex] = temp;
 
-        logActivity(`Spremenjen vrstni red članov (premaknjen ${temp})`);
+        logActivity(`Spremenjen vrstni red članov`);
         renderAdminData();
         render();
         pushData();
     }
 
     function updateMemberCount(name, change) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko ročno spreminja števce kav!");
+            return;
+        }
         counts[name] = Math.max(0, (counts[name] || 0) + change);
-        logActivity(`Spremenjen števec za ${name} na ${counts[name]}`);
+        logActivity(`Spremenjen števec za ${name}`);
         renderAdminData();
         render();
         pushData();
     }
 
     function updateMemberDateManual(name, rawVal) {
+        if (loggedInUser !== "Filipšek") return;
         if (!rawVal) {
             lastPaymentDates[name] = "";
-            logActivity(`Počiščen zadnji datum za ${name}`);
         } else {
             const parts = rawVal.split('-');
             if (parts.length === 3) {
                 const formatted = `${parseInt(parts[2])}. ${parseInt(parts[1])}. ${parts[0]}`;
                 lastPaymentDates[name] = formatted;
-                logActivity(`Ročno nastavljen zadnji datum za ${name} na: "${formatted}"`);
             }
         }
         render();
@@ -1808,8 +1715,12 @@
     }
 
     function setForcedNext(name) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko ročno določa naslednjega v vrsti!");
+            return;
+        }
         if (isUnavailable(name)) {
-            alert("Ne moreš nastaviti osebe, ki je trenutno odsotna!");
+            alert("Oseba je trenutno odsotna!");
             return;
         }
         forcedNextPerson = name;
@@ -1819,11 +1730,17 @@
         renderAdminData();
         render();
         pushData();
-        
-        alert(`Uspešno nastavljeno. Naslednji na vrsti je zdaj ${name}.`);
+        alert(`Naslednji na vrsti je zdaj ${name}.`);
     }
 
     function renderAdminData() {
+        const isFilipsek = (loggedInUser === "Filipšek");
+        
+        const warningEl = document.getElementById('adminPermissionWarning');
+        const addSectionEl = document.getElementById('addMemberSection');
+        if (warningEl) warningEl.style.display = isFilipsek ? 'none' : 'block';
+        if (addSectionEl) addSectionEl.style.display = isFilipsek ? 'flex' : 'none';
+
         const tbody = document.getElementById('adminTableBody');
         if (!tbody) return;
         
@@ -1852,33 +1769,30 @@
                 <td>
                     <div style="display:flex; align-items:center; gap:2px;">
                         <span>${cnt}x</span>
-                        <button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', 1)" title="Povečaj">+</button>
-                        <button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', -1)" title="Zmanjšaj">-</button>
+                        ${isFilipsek ? `<button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', 1)">+</button>
+                        <button style="padding:0 3px; font-size:10px; cursor:pointer;" onclick="updateMemberCount('${name}', -1)">-</button>` : ''}
                     </div>
                 </td>
                 <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
                 <td>
-                    <input type="date" value="${inputDateVal}" style="width: 110px; font-size: 10px; padding: 2px; border:1px solid #ccc; border-radius:4px;" onchange="updateMemberDateManual('${name}', this.value)" title="Izberi datum s koledarjem">
+                    <input type="date" value="${inputDateVal}" ${!isFilipsek ? 'disabled' : ''} style="width: 110px; font-size: 10px; padding: 2px; border:1px solid #ccc; border-radius:4px;" onchange="updateMemberDateManual('${name}', this.value)">
                 </td>
                 <td>
                     <div style="display:flex; gap:2px;">
-                        <button style="font-size:9px; padding:2px 3px; cursor:pointer; background:${isAb ? '#f1f5f9' : '#eafaf1'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleAbsent('${name}'); renderAdminData();" title="Klasičen dopust">
+                        <button style="font-size:9px; padding:2px 3px; cursor:pointer; background:${isAb ? '#f1f5f9' : '#eafaf1'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleAbsent('${name}'); renderAdminData();" title="Dopust">
                             ${isAb ? '🌴' : '👤'}
-                        </button>
-                        <button style="font-size:9px; padding:2px 3px; cursor:pointer; background:${isTempAb ? '#fef3c7' : '#f8fafc'}; border:1px solid #cbd5e1; border-radius:4px;" onclick="toggleTempAbsent('${name}'); renderAdminData();" title="Začasna odsotnost">
-                            ${isTempAb ? '⏳' : '👤'}
                         </button>
                     </div>
                 </td>
                 <td>
                     <div style="display:flex; align-items:center; gap:3px; flex-wrap:nowrap;">
-                        <button style="font-size:9px; padding:2px 4px; background:${isPaid ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${isPaid ? '#3498db' : '#cbd5e1'}; border-radius:4px; cursor:pointer; color:${isPaid ? '#0369a1' : 'inherit'};" onclick="toggleRoundPaidDirect('${name}')" title="Označi ali je že dal v tem krogu">
+                        ${isFilipsek ? `<button style="font-size:9px; padding:2px 4px; background:${isPaid ? '#e0f2fe' : '#f8fafc'}; border:1px solid ${isPaid ? '#3498db' : '#cbd5e1'}; border-radius:4px; cursor:pointer; color:${isPaid ? '#0369a1' : 'inherit'};" onclick="toggleRoundPaidDirect('${name}')">
                             ${isPaid ? '✓' : '☕'}
                         </button>
-                        <button style="font-size:9px; padding:2px 4px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')" title="Postavi za naslednjega">⭐</button>
-                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', -1)" title="Premakni gor">⬆️</button>
-                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', 1)" title="Premakni dol">⬇️</button>
-                        <button style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:11px; padding:0;" onclick="removeMember('${name}')" title="Odstrani">🗑️</button>
+                        <button style="font-size:9px; padding:2px 4px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:4px; cursor:pointer;" onclick="setForcedNext('${name}')">⭐</button>
+                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', -1)">⬆️</button>
+                        <button style="background:none; border:none; cursor:pointer; font-size:11px; padding:0;" onclick="moveMember('${index}', 1)">⬇️</button>
+                        <button style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:11px; padding:0;" onclick="removeMember('${name}')">🗑️</button>` : '<span style="font-size:10px; color:#888;">Samo Filipšek</span>'}
                     </div>
                 </td>
             `;
@@ -1886,63 +1800,38 @@
         });
 
         const logContainer = document.getElementById('adminLog');
-        logContainer.innerHTML = logs.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih rund.</i>' : '';
-        
+        logContainer.innerHTML = logs.length === 0 ? '<i style="color:#aaa;">Ni zapisov.</i>' : '';
         logs.slice().reverse().forEach(entry => {
             const item = document.createElement('div');
             item.className = 'log-item';
-            item.innerHTML = `
-                <div class="log-item-header">
-                    <span><b>${entry.name}</b> ${entry.isExtraPay ? '<small style="color:#e67e22;">(Izven vrstnega reda)</small>' : (entry.isAuto ? '<small style="color:#3498db;">(Avto - Odsotnost)</small> ' : '')} <small style="color:#666;">(Urejal: ${entry.actor || 'Neznano'})</small></span> 
-                    <span style="color:#7f8c8d;">${entry.date}</span>
-                </div>
-            `;
+            item.innerHTML = `<div class="log-item-header"><span><b>${entry.name}</b> <small>(Urejal: ${entry.actor || 'Neznano'})</small></span> <span style="color:#7f8c8d;">${entry.date}</span></div>`;
             logContainer.appendChild(item);
         });
 
         const activityContainer = document.getElementById('appActivityLog');
-        activityContainer.innerHTML = appActivities.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih aktivnosti.</i>' : '';
-        
+        activityContainer.innerHTML = appActivities.length === 0 ? '<i style="color:#aaa;">Ni aktivnosti.</i>' : '';
         appActivities.slice().reverse().forEach(act => {
             const item = document.createElement('div');
             item.className = 'log-item';
-            item.innerHTML = `
-                <div class="log-item-header">
-                    <span>${act.action}</span> 
-                    <span style="color:#94a3b8; font-size:10px;">${act.date}</span>
-                </div>
-            `;
+            item.innerHTML = `<div class="log-item-header"><span>${act.action}</span> <span style="color:#94a3b8; font-size:10px;">${act.date}</span></div>`;
             activityContainer.appendChild(item);
         });
 
         const loginContainer = document.getElementById('appLoginLog');
-        loginContainer.innerHTML = appLogins.length === 0 ? '<i style="color:#aaa;">Ni zabeleženih vpisov.</i>' : '';
-
+        loginContainer.innerHTML = appLogins.length === 0 ? '<i style="color:#aaa;">Ni vpisov.</i>' : '';
         appLogins.slice().reverse().forEach(lg => {
             const item = document.createElement('div');
             item.className = 'log-item';
-            item.innerHTML = `
-                <div class="log-item-header">
-                    <span>Uporabnik: <b>${lg.user}</b> se je vpisal v aplikacijo</span>
-                    <span style="color:#16a34a; font-size:10px; font-weight:700;">${lg.date}</span>
-                </div>
-            `;
+            item.innerHTML = `<div class="log-item-header"><span>Uporabnik: <b>${lg.user}</b></span><span style="color:#16a34a; font-size:10px; font-weight:700;">${lg.date}</span></div>`;
             loginContainer.appendChild(item);
         });
 
         const teamsContainer = document.getElementById('teamsMessageLog');
-        teamsContainer.innerHTML = teamsLogs.length === 0 ? '<i style="color:#aaa;">Ni poslanih sporočil v Teams.</i>' : '';
-
+        teamsContainer.innerHTML = teamsLogs.length === 0 ? '<i style="color:#aaa;">Ni sporočil.</i>' : '';
         teamsLogs.slice().reverse().forEach(tm => {
             const item = document.createElement('div');
             item.className = 'log-item';
-            item.innerHTML = `
-                <div class="log-item-header">
-                    <span style="font-weight:700; color:#5b63d3;">Poslano obvestilo</span>
-                    <span style="color:#94a3b8; font-size:10px;">${tm.date}</span>
-                </div>
-                <div style="font-size:10px; color:#475569; white-space:pre-wrap; background:#ffffff; padding:4px 6px; border-radius:4px; margin-top:2px;">${tm.text}</div>
-            `;
+            item.innerHTML = `<div class="log-item-header"><span style="font-weight:700; color:#5b63d3;">Teams</span><span style="color:#94a3b8; font-size:10px;">${tm.date}</span></div><div style="font-size:10px; color:#475569; white-space:pre-wrap; background:#ffffff; padding:4px 6px; border-radius:4px; margin-top:2px;">${tm.text}</div>`;
             teamsContainer.appendChild(item);
         });
         
@@ -1950,6 +1839,10 @@
     }
 
     function addMember() {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko dodaja nove člane!");
+            return;
+        }
         const input = document.getElementById('newMemberName');
         const name = input.value.trim();
         if (!name) return;
@@ -1967,7 +1860,6 @@
         lastPaymentDates[name] = "";
 
         logActivity(`Dodan nov sodelavec: ${name}`);
-
         input.value = '';
         render();
         renderAdminData();
@@ -1975,6 +1867,10 @@
     }
 
     function removeMember(name) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko odstranjuje člane!");
+            return;
+        }
         if (confirm(`Res želiš odstraniti sodelavca ${name}?`)) {
             team = team.filter(m => m !== name);
             delete counts[name];
@@ -1986,7 +1882,6 @@
             if (manualSelectedPerson === name) manualSelectedPerson = null;
 
             logActivity(`Odstranjen sodelavec: ${name}`);
-
             render();
             renderAdminData();
             pushData();
@@ -2007,9 +1902,7 @@
     }
 
     function handlePasswordKey(event) {
-        if (event.key === 'Enter') {
-            checkPassword();
-        }
+        if (event.key === 'Enter') checkPassword();
     }
 
     function checkPassword() {
@@ -2022,15 +1915,18 @@
             document.getElementById('apiKey').value = API_KEY;
             document.getElementById('webhookUrl').value = WEBHOOK;
             
-            logActivity(`Uporabnik ${loggedInUser || 'Neznano'} se je uspešno prijavil v nastavitve z geslom.`);
+            logActivity(`Uporabnik ${loggedInUser || 'Neznano'} se je prijavil v nastavitve.`);
             renderAdminData();
         } else {
             document.getElementById('authError').style.display = 'block';
-            logActivity(`Neznan poskus neuspešne prijave v nastavitve z napačnim geslom.`);
         }
     }
 
     function saveConfig() {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko shranjuje skrbniške nastavitve povezav!");
+            return;
+        }
         BIN_ID = document.getElementById('binId').value;
         API_KEY = document.getElementById('apiKey').value;
         WEBHOOK = document.getElementById('webhookUrl').value;
@@ -2040,13 +1936,16 @@
         localStorage.setItem('WEBHOOK', WEBHOOK);
 
         logActivity("Posodobljene skrbniške nastavitve (API / Webhook)");
-
         alert("Nastavitve shranjene!");
         closeModal();
         fetchData();
     }
 
     function promptResetVerification() {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Filipšek lahko ponastavlja bazo!");
+            return;
+        }
         document.getElementById('resetPassInput').value = '';
         document.getElementById('resetAuthError').style.display = 'none';
         document.getElementById('resetAuthOverlay').style.display = 'flex';
@@ -2073,11 +1972,6 @@
         const doActivities = document.getElementById('resetActivities').checked;
         const doTeams = document.getElementById('resetTeams').checked;
 
-        if (!doCounts && !doLogs && !doActivities && !doTeams) {
-            alert("Označiti moraš vsaj eno možnost za ponastavitev!");
-            return;
-        }
-
         if (doCounts) {
             counts = {};
             currentRoundPaid = {};
@@ -2102,7 +1996,7 @@
         localStorage.setItem('confirmedDateStr', "");
         localStorage.setItem('confirmedPersonName', "");
 
-        logActivity("⚠️ Izvedena ponastavitev baze (z overitvijo gesla)!");
+        logActivity("⚠️ Izvedena ponastavitev baze!");
         render();
         renderAdminData();
         pushData();

@@ -124,17 +124,6 @@
             letter-spacing: -0.5px;
         }
 
-        .tomorrow-indicator {
-            font-size: 12px;
-            color: #7f8c8d;
-            background: #f1f5f9;
-            padding: 4px 10px;
-            border-radius: 10px;
-            display: inline-block;
-            margin-bottom: 12px;
-            font-weight: 700;
-        }
-
         .btn-3d {
             border: none;
             border-radius: 12px;
@@ -595,10 +584,8 @@
     </div>
 
     <div class="next-box">
-        <span id="mainTitleLabel">Danes bo kavo častil:</span>
+        <span id="mainTitleLabel">Danes je na vrsti, da časti kavo:</span>
         <strong id="nextPerson">-</strong>
-        
-        <div id="tomorrowIndicator" class="tomorrow-indicator">Naslednji v vrsti: -</div>
 
         <div class="next-buttons-group">
             <button id="btnConfirmNext" class="btn-3d btn-confirm" onclick="confirmPaymentForSelected()">
@@ -1431,19 +1418,15 @@
             manualSelectedPerson = temporaryVolunteerToday || scheduledPerson;
         }
 
-        const tomorrowPerson = getPersonAfter(manualSelectedPerson !== "-" ? manualSelectedPerson : scheduledPerson);
-
         const todayStr = new Date().toDateString();
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
 
         if (isAlreadyConfirmedToday) {
-            document.getElementById('mainTitleLabel').innerText = "Jutri bo kavo častil:";
-            document.getElementById('nextPerson').innerText = tomorrowPerson;
-            document.getElementById('tomorrowIndicator').innerText = `Danes je častil: ${confirmedPersonName}`;
+            document.getElementById('mainTitleLabel').innerText = "Danes je kavo častila oseba:";
+            document.getElementById('nextPerson').innerText = confirmedPersonName;
         } else {
-            document.getElementById('mainTitleLabel').innerText = "Danes bo kavo častil:";
+            document.getElementById('mainTitleLabel').innerText = "Danes je na vrsti, da časti kavo:";
             document.getElementById('nextPerson').innerText = manualSelectedPerson;
-            document.getElementById('tomorrowIndicator').innerText = `Naslednji v vrsti: ${tomorrowPerson}`;
         }
 
         const cardsContainer = document.getElementById('cards');
@@ -1674,7 +1657,7 @@
         }
 
         const title = "☕ ODMOR ZA KAVO ☕";
-        const desc = `🎉 Danes kavo časti: **${name}**! Hvala!\n\nSe vidimo ob 12:00!`;
+        const desc = `Danes kavo časti: **${name}**`;
         sendWebhookPayload(title, desc);
     }
 
@@ -1696,7 +1679,7 @@
         const activeToday = manualSelectedPerson || temporaryVolunteerToday || scheduledPerson;
         
         const title = "☕ ODMOR ZA KAVO ☕";
-        const desc = `**Danes kavo časti:** ${activeToday}\n\nProsim potrdi v aplikaciji!`;
+        const desc = `Danes kavo časti: **${activeToday}**`;
         
         logActivity(`Poslan opomnik v MS Teams za: ${activeToday}`);
         sendWebhookPayload(title, desc);

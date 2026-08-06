@@ -800,8 +800,17 @@
 
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
+        
+        // Če se je koledarski dan spremenil, počistimo tudi včerajšnjo potrditev, da se ponastavi na naslednjo osebo
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
+            
+            // Če je prešel nov dan, počistimo prejšnjo potrditev za včeraj
+            confirmedDateStr = "";
+            confirmedPersonName = "";
+            localStorage.setItem('confirmedDateStr', "");
+            localStorage.setItem('confirmedPersonName', "");
+
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
 
@@ -920,6 +929,9 @@
             timeMs: Date.now()
         };
 
+        localStorage.setItem('confirmedDateStr', confirmedDateStr);
+        localStorage.setItem('confirmedPersonName', confirmedPersonName);
+
         let history = [];
         try {
             const rawHistory = localStorage.getItem('coffee_app_backup_history');
@@ -1026,6 +1038,9 @@
                 confirmedDateStr = data.confirmedDateStr || "";
                 confirmedPersonName = data.confirmedPersonName || "";
 
+                localStorage.setItem('confirmedDateStr', confirmedDateStr);
+                localStorage.setItem('confirmedPersonName', confirmedPersonName);
+
                 logActivity(`Uspešno obnovljeni podatki iz lokalnega backupa #${index + 1}.`);
                 render();
                 renderAdminData();
@@ -1098,6 +1113,9 @@
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
                     confirmedPersonName = data.confirmedPersonName || "";
+
+                    localStorage.setItem('confirmedDateStr', confirmedDateStr);
+                    localStorage.setItem('confirmedPersonName', confirmedPersonName);
 
                     logActivity(`Uspešno naložen backup iz datoteke na PC-ju: ${file.name}`);
                     render();
@@ -1209,8 +1227,8 @@
             teamsLogs = data.record.teamsLogs || [];
             forcedNextPerson = data.record.forcedNextPerson || null;
             
-            confirmedDateStr = data.record.confirmedDateStr || "";
-            confirmedPersonName = data.record.confirmedPersonName || "";
+            confirmedDateStr = data.record.confirmedDateStr || localStorage.getItem('confirmedDateStr') || "";
+            confirmedPersonName = data.record.confirmedPersonName || localStorage.getItem('confirmedPersonName') || "";
 
             if (data.record.team && Array.isArray(data.record.team)) {
                 team = data.record.team;
@@ -1271,6 +1289,12 @@
             localStorage.setItem('lastRecordedDate', todayStr);
         } else if (lastRecordedDate !== todayStr) {
             Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
+            
+            confirmedDateStr = "";
+            confirmedPersonName = "";
+            localStorage.setItem('confirmedDateStr', "");
+            localStorage.setItem('confirmedPersonName', "");
+
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
         }
@@ -1421,8 +1445,9 @@
         const todayStr = new Date().toDateString();
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
 
+        // Dinamični izpis glede na potrditev za tekoči dan
         if (isAlreadyConfirmedToday) {
-            document.getElementById('mainTitleLabel').innerText = "Danes je kavo častil:";
+            document.getElementById('mainTitleLabel').innerText = "Danes kavo časti:";
             document.getElementById('nextPerson').innerText = confirmedPersonName;
         } else {
             document.getElementById('mainTitleLabel').innerText = "Danes je na vrsti, da časti kavo:";
@@ -1523,6 +1548,9 @@
             
             confirmedDateStr = new Date().toDateString();
             confirmedPersonName = personToConfirm;
+
+            localStorage.setItem('confirmedDateStr', confirmedDateStr);
+            localStorage.setItem('confirmedPersonName', confirmedPersonName);
 
             addPayment(personToConfirm, false, false);
             manualSelectedPerson = null; 
@@ -1642,6 +1670,9 @@
                     confirmedDateStr = new Date().toDateString();
                     confirmedPersonName = name;
 
+                    localStorage.setItem('confirmedDateStr', confirmedDateStr);
+                    localStorage.setItem('confirmedPersonName', confirmedPersonName);
+
                     addPayment(name, true, true);
                     manualSelectedPerson = null;
                 }
@@ -1714,6 +1745,8 @@
             
             confirmedDateStr = "";
             confirmedPersonName = "";
+            localStorage.setItem('confirmedDateStr', "");
+            localStorage.setItem('confirmedPersonName', "");
 
             logActivity(`Razveljavljena zadnja evidenca pogostitve za: ${last.name}`);
             render();
@@ -2066,6 +2099,8 @@
         manualSelectedPerson = null;
         confirmedDateStr = "";
         confirmedPersonName = "";
+        localStorage.setItem('confirmedDateStr', "");
+        localStorage.setItem('confirmedPersonName', "");
 
         logActivity("⚠️ Izvedena ponastavitev baze (z overitvijo gesla)!");
         render();

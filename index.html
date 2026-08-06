@@ -96,36 +96,7 @@
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
         }
 
-        /* Zeleno okno za naslednjega */
-        .next-box {
-            background: linear-gradient(145deg, #f4faf6, #eafaf1);
-            border: 1px solid #a3e4d7;
-            border-radius: 16px;
-            padding: 16px;
-            text-align: center;
-            margin-bottom: 18px;
-            box-shadow: 0 4px 12px rgba(39,174,96,0.08);
-        }
-
-        .next-box span {
-            font-size: 12px;
-            color: #1e8449;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 800;
-            display: block;
-        }
-
-        .next-box strong {
-            font-size: 26px;
-            color: var(--primary);
-            display: block;
-            margin: 4px 0 8px 0;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-        }
-
-        /* Modro okno za tistega, ki časti kavo (izbrana oseba) */
+        /* Modro okno za tistega, ki časti kavo (izbrana oseba) na vrhu */
         .selected-box {
             background: linear-gradient(145deg, #ebf8ff, #e1effe);
             border: 1px solid #3498db;
@@ -613,13 +584,7 @@
         </div>
     </div>
 
-    <!-- ZELENO OKNO: NASLEDNJI -->
-    <div class="next-box">
-        <span id="nextTitleLabel">Naslednji:</span>
-        <strong id="nextPerson">-</strong>
-    </div>
-
-    <!-- MODRO OKNO: KAVO ČASTI (IZBRANA OSEBA) -->
+    <!-- MODRO OKNO: KAVO ČASTI (IZBRANA OSEBA) NA VRHU -->
     <div class="selected-box">
         <span id="mainTitleLabel">Danes kavo časti:</span>
         <strong id="selectedPerson">-</strong>
@@ -1480,15 +1445,12 @@
         const todayStr = new Date().toDateString();
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
 
-        // Prikaz v zelenem oknu (Naslednji) - vedno prikazuje naslednjega v vrsti
-        document.getElementById('nextPerson').innerText = scheduledPerson;
-
-        // Prikaz v modrem oknu (kavo časti / izbrana oseba)
+        // Prikaz v modrem oknu zgoraj (kavo časti / izbrana oseba)
         if (isAlreadyConfirmedToday) {
             document.getElementById('mainTitleLabel').innerText = "Danes kavo časti:";
             document.getElementById('selectedPerson').innerText = confirmedPersonName;
         } else {
-            document.getElementById('mainTitleLabel').innerText = "Danes kavo časti (izbrano):";
+            document.getElementById('mainTitleLabel').innerText = "Danes kavo časti:";
             document.getElementById('selectedPerson').innerText = manualSelectedPerson;
         }
 

@@ -293,16 +293,11 @@
             opacity: 0.85;
         }
 
+        /* Zelena barva za naslednjega v vrsti */
         .info-card.is-turn {
             border-color: #27ae60;
             background: linear-gradient(180deg, #f4faf6 0%, #eafaf1 100%);
             box-shadow: 0 3px 8px rgba(39, 174, 96, 0.15);
-        }
-
-        .info-card.is-selected {
-            border: 2px solid #3498db !important;
-            background: linear-gradient(180deg, #ebf8ff 0%, #e1effe 100%) !important;
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25) !important;
         }
         
         .card-header {
@@ -341,7 +336,6 @@
         .badge-turn { background: #27ae60; }
         .badge-absent { background: #94a3b8; }
         .badge-temp { background: #d97706; }
-        .badge-selected { background: #3498db; }
         
         .card-subinfo {
             font-size: 8.5px;
@@ -1366,15 +1360,12 @@
             const unavailable = isAb || isTempAb;
             
             const isTurn = (name === scheduledPerson) && !unavailable;
-            const isSelected = (name === manualSelectedPerson);
 
             let badgeHtml = '';
             if (isAb) {
                 badgeHtml = `<span class="badge badge-absent">🌴 Odsoten</span>`;
             } else if (isTempAb) {
                 badgeHtml = `<span class="badge badge-temp">⏳ Danes ni tu</span>`;
-            } else if (isSelected) {
-                badgeHtml = `<span class="badge badge-selected">👉 Izbran</span>`;
             } else if (currentRoundPaid[name]) {
                 badgeHtml = `<span class="badge" style="background:#3498db;">✓ Že dal</span>`;
             } else if (isTurn) {
@@ -1391,7 +1382,8 @@
             }
 
             const card = document.createElement('div');
-            card.className = `info-card ${isAb ? 'absent' : (isTempAb ? 'temp-absent' : '')} ${isTurn ? 'is-turn' : ''} ${isSelected ? 'is-selected' : ''}`;
+            // Odstranjen razred is-selected, ohranja se izključno zelena barva za naslednjega (is-turn)
+            card.className = `info-card ${isAb ? 'absent' : (isTempAb ? 'temp-absent' : '')} ${isTurn ? 'is-turn' : ''}`;
             
             card.onclick = (e) => {
                 if (unavailable) return;
@@ -1754,7 +1746,6 @@
             const diff = cnt - avg;
             const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
             const isAb = absent[name] || false;
-            const isTempAb = tempAbsent[name] || false;
             const isNext = (name === getNextPerson());
             const currentSavedDate = lastPaymentDates[name] || '';
             const inputDateVal = convertToInputDate(currentSavedDate);

@@ -564,7 +564,7 @@
     let currentRoundPaid = {};
     let lastPaymentDates = {}; 
     let lastRecordedDate = localStorage.getItem('lastRecordedDate') || "";
-    let loggedInUser = "";
+    let loggedInUser = localStorage.getItem('loggedInUser') || "";
 
     let temporaryVolunteerToday = null; 
     let forcedNextPerson = null;
@@ -608,6 +608,7 @@
             const opt = document.createElement('option');
             opt.value = name;
             opt.innerText = name;
+            if (name === loggedInUser) opt.selected = true;
             select.appendChild(opt);
         });
         document.getElementById('loginOverlay').style.display = 'flex';
@@ -617,6 +618,7 @@
         const select = document.getElementById('loginUserSelect');
         loggedInUser = select.value;
         if (!loggedInUser) return;
+        localStorage.setItem('loggedInUser', loggedInUser);
         document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
         renderAdminData();
@@ -784,28 +786,61 @@
         reader.readAsText(file);
     }
 
+    function loadFromLocalCacheFirst() {
+        try {
+            const cached = localStorage.getItem('coffee_app_daily_backup');
+            if (cached) {
+                const data = JSON.parse(cached);
+                if (data.team) team = data.team;
+                counts = data.counts || {};
+                absent = data.absent || {};
+                tempAbsent = data.tempAbsent || {};
+                currentRoundPaid = data.currentRoundPaid || {};
+                lastPaymentDates = data.lastPaymentDates || {};
+                forcedNextPerson = data.forcedNextPerson || null;
+            }
+        } catch (e) {}
+        loadDefaultDataState('⏳ Sinhronizacija...');
+    }
+
     function fetchData() {
         document.getElementById('status').innerText = '⏳ Nalaganje...';
+        
+        // Timeout zaščita, da aplikacija nikoli ne obtiči v stanju nalaganja, če strežnik ne odgovori takoj
+        const fetchTimeout = setTimeout(() => {
+            if (document.getElementById('status').innerText.includes('Nalaganje')) {
+                loadDefaultDataState('⚠️ Lokalni način');
+            }
+        }, 4000);
+
         fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': API_KEY }
         })
         .then(res => { if (!res.ok) throw new Error(); return res.json(); })
         .then(data => {
-            if (!data || !data.record) return;
-            counts = data.record.counts || {};
-            absent = data.record.absent || {};
-            tempAbsent = data.record.tempAbsent || {};
-            currentRoundPaid = data.record.currentRoundPaid || {};
-            lastPaymentDates = data.record.lastPaymentDates || {};
-            forcedNextPerson = data.record.forcedNextPerson || null;
+            clearTimeout(fetchTimeout);
+            if (!data || !data.record) {
+                loadDefaultDataState('⚠️ Ni podatkov');
+                return;
+            }
+            counts = data.record.counts || counts;
+            absent = data.record.absent || absent;
+            tempAbsent = data.record.tempAbsent || tempAbsent;
+            currentRoundPaid = data.record.currentRoundPaid || currentRoundPaid;
+            lastPaymentDates = data.record.lastPaymentDates || lastPaymentDates;
+            forcedNextPerson = data.record.forcedNextPerson || forcedNextPerson;
             confirmedDateStr = data.record.confirmedDateStr || localStorage.getItem('confirmedDateStr') || "";
             confirmedPersonName = data.record.confirmedPersonName || localStorage.getItem('confirmedPersonName') || "";
             if (data.record.team && Array.isArray(data.record.team)) team = data.record.team;
+            
             saveDailyLocalBackup();
             finalizeDataLoad('✅ Sinhronizirano');
         })
-        .catch(() => loadDefaultDataState('⚠️ Lokalni način'));
+        .catch(() => {
+            clearTimeout(fetchTimeout);
+            loadDefaultDataState('⚠️ Lokalni način');
+        });
     }
 
     function loadDefaultDataState(statusText) {
@@ -834,7 +869,11 @@
             localStorage.setItem('lastRecordedDate', todayStr);
         }
         document.getElementById('status').innerText = statusText;
-        if (!loggedInUser) checkLogin();
+        if (!loggedInUser) {
+            checkLogin();
+        } else {
+            document.getElementById('currentLoggedInUser').innerText = loggedInUser;
+        }
         render();
         renderAdminData();
     }
@@ -851,7 +890,7 @@
             })
         })
         .then(res => { if (!res.ok) throw new Error(); document.getElementById('status').innerText = '✅ Shranjeno'; })
-        .catch(() => { document.getElementById('status').innerText = '❌ Napaka'; });
+        .catch(() => { document.getElementById('status').innerText = '💾 Shranjeno lokalno'; });
     }
 
     function isUnavailable(name) { return absent[name] || tempAbsent[name]; }
@@ -877,7 +916,6 @@
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
         const scheduledPerson = getNextPerson();
 
-        // 1. Logika: Če je danes potrjeno, naj piše "Danes kavo časti: [ime]" celoten dan; z naslednjim dnem se avtomatsko prestavi
         let displayedPerson = "-";
         if (isAlreadyConfirmedToday) {
             displayedPerson = confirmedPersonName;
@@ -890,7 +928,6 @@
         document.getElementById('mainTitleLabel').innerText = isAlreadyConfirmedToday ? "Danes kavo časti:" : "Danes je na vrsti da kavo časti:";
         document.getElementById('selectedPerson').innerText = displayedPerson;
 
-        // 2. Logika za Teams gumb glede na to, ali je že potrjeno ali ne
         const teamsBtn = document.getElementById('teamsButton');
         if (isAlreadyConfirmedToday) {
             teamsBtn.innerText = "📢 Povabi na kavo";
@@ -1032,7 +1069,6 @@
         });
     }
 
-    // 2. Logika za Teams gumb (obveščanje glede na potrditev)
     function handleTeamsButtonClick() {
         const todayStr = new Date().toDateString();
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
@@ -1048,7 +1084,6 @@
         }
     }
 
-    // 3. Nastavitev ročne izbire naslednje osebe
     function populateForcedNextSelect() {
         const select = document.getElementById('forcedNextSelect');
         if (!select) return;
@@ -1093,7 +1128,6 @@
         pushData();
     }
 
-    // 5. Možnost ročnega vnašanja zadnjega datuma
     function updateMemberDate(name, newDateVal) {
         if (loggedInUser !== "Filipšek") return;
         lastPaymentDates[name] = newDateVal;
@@ -1189,7 +1223,6 @@
 
     function handlePasswordKey(event) { if (event.key === 'Enter') checkPassword(); }
 
-    // 4. Sprememba gesla iz 'geslo' v '1995'
     function checkPassword() {
         if (document.getElementById('passInput').value === '1995') {
             document.getElementById('authView').style.display = 'none';
@@ -1216,6 +1249,8 @@
         fetchData();
     }
 
+    // Zagon aplikacije: takoj naloži iz lokalnega predpomnilnika za trenutni prikaz, nato povleče z API-ja
+    loadFromLocalCacheFirst();
     fetchData();
 </script>
 </body>

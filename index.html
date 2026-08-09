@@ -422,7 +422,7 @@
         <div class="header-right">
             <span id="liveDate" class="date-badge">-</span>
             <span id="liveClock" class="clock-badge">00:00:00</span>
-            <span id="status" class="status-badge">Nalaganje...</span>
+            <span id="status" class="status-badge">Lokalni način</span>
         </div>
     </div>
 
@@ -513,7 +513,7 @@
 
             <div class="admin-section">
                 <h3>💾 Stabilnost in varnostne kopije</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Aplikacija samodejno skrbi za varnost podatkov, tukaj pa imaš možnost ročne obnove ali prenosa stanja za popolno varnost pred izgubo podatkov:</p>
+                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Aplikacija samodejno shranjuje stanje v brskalnik. Tukaj lahko prenašaš ali nalagaš varnostne kopije:</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="downloadJsonFile()">📥 Prenesi JSON</button>
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz računalnika</button>
@@ -533,14 +533,6 @@
             <div class="admin-section">
                 <h3>⚙️ Povezave</h3>
                 <div class="config-field">
-                    <label>BIN ID (JSONBin):</label>
-                    <input type="text" id="binId">
-                </div>
-                <div class="config-field">
-                    <label>API Ključ (JSONBin):</label>
-                    <input type="text" id="apiKey">
-                </div>
-                <div class="config-field">
                     <label>Teams Webhook URL:</label>
                     <input type="text" id="webhookUrl">
                 </div>
@@ -552,10 +544,9 @@
 </div>
 
 <script>
-    let team = ["Fendre", "Filipšek", "Fidler", "Pirnat", "Govedić", "Šetina", "Vrtačnik", "Gračner", "Oprešnik"];
+    let defaultTeam = ["Fendre", "Filipšek", "Fidler", "Pirnat", "Govedić", "Šetina", "Vrtačnik", "Gračner", "Oprešnik"];
+    let team = [...defaultTeam];
 
-    let BIN_ID = localStorage.getItem('BIN_ID') || "6a635852da38895dfe89ba53"; 
-    let API_KEY = localStorage.getItem('API_KEY') || "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
     let WEBHOOK = localStorage.getItem('WEBHOOK') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
 
     let counts = {};
@@ -582,10 +573,6 @@
     setInterval(updateDateTime, 1000);
     updateDateTime();
 
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") fetchData();
-    });
-
     function checkMidnightRollover() {
         const todayStr = new Date().toDateString();
         if (lastRecordedDate && lastRecordedDate !== todayStr) {
@@ -597,7 +584,7 @@
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
             render();
-            pushData();
+            saveDailyLocalBackup();
         }
     }
 
@@ -622,7 +609,7 @@
         document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
         renderAdminData();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function promptChangeUser() {
@@ -650,6 +637,8 @@
     }
 
     function saveDailyLocalBackup(forceManual = false) {
+        if (!team || team.length === 0) return;
+
         const backupData = {
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
@@ -673,6 +662,7 @@
         }
         localStorage.setItem('coffee_app_backup_history', JSON.stringify(history));
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
+        document.getElementById('status').innerText = '✅ Shranjeno';
     }
 
     function createManualLocalBackup() {
@@ -711,7 +701,7 @@
         }
         if (confirm(`Ali res želiš obnoviti podatke iz backupa #${index + 1}?`)) {
             const data = history[index];
-            if (data.team) team = data.team;
+            if (data.team && data.team.length > 0) team = data.team;
             counts = data.counts || {};
             absent = data.absent || {};
             tempAbsent = data.tempAbsent || {};
@@ -724,7 +714,7 @@
             localStorage.setItem('confirmedPersonName', confirmedPersonName);
             render();
             renderAdminData();
-            pushData();
+            saveDailyLocalBackup();
             alert("Podatki so bili uspešno obnovljeni!");
             closeModal();
         }
@@ -763,7 +753,7 @@
             try {
                 const data = JSON.parse(e.target.result);
                 if (confirm(`Naloži podatke iz datoteke (${file.name})?`)) {
-                    if (data.team) team = data.team;
+                    if (data.team && data.team.length > 0) team = data.team;
                     counts = data.counts || {};
                     absent = data.absent || {};
                     tempAbsent = data.tempAbsent || {};
@@ -776,7 +766,7 @@
                     localStorage.setItem('confirmedPersonName', confirmedPersonName);
                     render();
                     renderAdminData();
-                    pushData();
+                    saveDailyLocalBackup();
                     alert("Uspešno naloženo!");
                     closeModal();
                 }
@@ -786,12 +776,14 @@
         reader.readAsText(file);
     }
 
-    function loadFromLocalCacheFirst() {
+    function initApp() {
         try {
             const cached = localStorage.getItem('coffee_app_daily_backup');
             if (cached) {
                 const data = JSON.parse(cached);
-                if (data.team) team = data.team;
+                if (data.team && Array.isArray(data.team) && data.team.length > 0) {
+                    team = data.team;
+                }
                 counts = data.counts || {};
                 absent = data.absent || {};
                 tempAbsent = data.tempAbsent || {};
@@ -800,50 +792,8 @@
                 forcedNextPerson = data.forcedNextPerson || null;
             }
         } catch (e) {}
-        loadDefaultDataState('⏳ Sinhronizacija...');
-    }
 
-    function fetchData() {
-        document.getElementById('status').innerText = '⏳ Nalaganje...';
-        
-        // Timeout zaščita, da aplikacija nikoli ne obtiči v stanju nalaganja, če strežnik ne odgovori takoj
-        const fetchTimeout = setTimeout(() => {
-            if (document.getElementById('status').innerText.includes('Nalaganje')) {
-                loadDefaultDataState('⚠️ Lokalni način');
-            }
-        }, 4000);
-
-        fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': API_KEY }
-        })
-        .then(res => { if (!res.ok) throw new Error(); return res.json(); })
-        .then(data => {
-            clearTimeout(fetchTimeout);
-            if (!data || !data.record) {
-                loadDefaultDataState('⚠️ Ni podatkov');
-                return;
-            }
-            counts = data.record.counts || counts;
-            absent = data.record.absent || absent;
-            tempAbsent = data.record.tempAbsent || tempAbsent;
-            currentRoundPaid = data.record.currentRoundPaid || currentRoundPaid;
-            lastPaymentDates = data.record.lastPaymentDates || lastPaymentDates;
-            forcedNextPerson = data.record.forcedNextPerson || forcedNextPerson;
-            confirmedDateStr = data.record.confirmedDateStr || localStorage.getItem('confirmedDateStr') || "";
-            confirmedPersonName = data.record.confirmedPersonName || localStorage.getItem('confirmedPersonName') || "";
-            if (data.record.team && Array.isArray(data.record.team)) team = data.record.team;
-            
-            saveDailyLocalBackup();
-            finalizeDataLoad('✅ Sinhronizirano');
-        })
-        .catch(() => {
-            clearTimeout(fetchTimeout);
-            loadDefaultDataState('⚠️ Lokalni način');
-        });
-    }
-
-    function loadDefaultDataState(statusText) {
+        if (!team || team.length === 0) team = [...defaultTeam];
         team.forEach(name => { 
             if (!(name in counts)) counts[name] = 0; 
             if (!(name in absent)) absent[name] = false;
@@ -851,10 +801,7 @@
             if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
             if (!(name in lastPaymentDates)) lastPaymentDates[name] = "";
         });
-        finalizeDataLoad(statusText);
-    }
 
-    function finalizeDataLoad(statusText) {
         const todayStr = new Date().toDateString();
         if (!lastRecordedDate) {
             lastRecordedDate = todayStr;
@@ -868,7 +815,8 @@
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
         }
-        document.getElementById('status').innerText = statusText;
+
+        document.getElementById('status').innerText = '✅ Pripravljeno';
         if (!loggedInUser) {
             checkLogin();
         } else {
@@ -878,19 +826,9 @@
         renderAdminData();
     }
 
-    function pushData() {
-        document.getElementById('status').innerText = '⏳ Shranjevanje...';
-        saveDailyLocalBackup();
-        fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-            body: JSON.stringify({ 
-                team, counts, absent, tempAbsent, currentRoundPaid, lastPaymentDates,
-                forcedNextPerson, confirmedDateStr, confirmedPersonName 
-            })
-        })
-        .then(res => { if (!res.ok) throw new Error(); document.getElementById('status').innerText = '✅ Shranjeno'; })
-        .catch(() => { document.getElementById('status').innerText = '💾 Shranjeno lokalno'; });
+    function fetchData() {
+        initApp();
+        alert("Podatki osveženi iz lokalnega pomnilnika!");
     }
 
     function isUnavailable(name) { return absent[name] || tempAbsent[name]; }
@@ -995,7 +933,7 @@
 
             render();
             renderAdminData();
-            pushData();
+            saveDailyLocalBackup();
         }
     }
 
@@ -1013,7 +951,7 @@
             
             render();
             renderAdminData();
-            pushData();
+            saveDailyLocalBackup();
         }
     }
 
@@ -1023,7 +961,7 @@
         else forcedNextPerson = name;
         render();
         renderAdminData();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function toggleTempAbsent(name) {
@@ -1032,7 +970,7 @@
         else forcedNextPerson = name;
         render();
         renderAdminData();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function toggleVolunteerMenu() {
@@ -1062,7 +1000,7 @@
                     lastPaymentDates[name] = new Date().toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
                     render();
                     renderAdminData();
-                    pushData();
+                    saveDailyLocalBackup();
                 }
             };
             grid.appendChild(btn);
@@ -1106,7 +1044,7 @@
         forcedNextPerson = select.value;
         render();
         renderAdminData();
-        pushData();
+        saveDailyLocalBackup();
         alert(`Naslednji v vrsti je uspešno nastavljen na: ${forcedNextPerson}`);
     }
 
@@ -1117,7 +1055,7 @@
         const temp = team[idx]; team[idx] = team[newIndex]; team[newIndex] = temp;
         renderAdminData();
         render();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function updateMemberCount(name, change) {
@@ -1125,7 +1063,7 @@
         counts[name] = Math.max(0, (counts[name] || 0) + change);
         renderAdminData();
         render();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function updateMemberDate(name, newDateVal) {
@@ -1133,7 +1071,7 @@
         lastPaymentDates[name] = newDateVal;
         renderAdminData();
         render();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function renderAdminData() {
@@ -1193,7 +1131,7 @@
         input.value = '';
         render();
         renderAdminData();
-        pushData();
+        saveDailyLocalBackup();
     }
 
     function removeMember(name) {
@@ -1207,7 +1145,7 @@
             delete lastPaymentDates[name];
             render();
             renderAdminData();
-            pushData();
+            saveDailyLocalBackup();
         }
     }
 
@@ -1227,8 +1165,6 @@
         if (document.getElementById('passInput').value === '1995') {
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
-            document.getElementById('binId').value = BIN_ID;
-            document.getElementById('apiKey').value = API_KEY;
             document.getElementById('webhookUrl').value = WEBHOOK;
             renderAdminData();
         } else {
@@ -1238,20 +1174,13 @@
 
     function saveConfig() {
         if (loggedInUser !== "Filipšek") return;
-        BIN_ID = document.getElementById('binId').value;
-        API_KEY = document.getElementById('apiKey').value;
         WEBHOOK = document.getElementById('webhookUrl').value;
-        localStorage.setItem('BIN_ID', BIN_ID);
-        localStorage.setItem('API_KEY', API_KEY);
         localStorage.setItem('WEBHOOK', WEBHOOK);
         alert("Shranjeno!");
         closeModal();
-        fetchData();
     }
 
-    // Zagon aplikacije: takoj naloži iz lokalnega predpomnilnika za trenutni prikaz, nato povleče z API-ja
-    loadFromLocalCacheFirst();
-    fetchData();
+    initApp();
 </script>
 </body>
 </html>

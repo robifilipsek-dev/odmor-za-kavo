@@ -422,7 +422,7 @@
         <div class="header-right">
             <span id="liveDate" class="date-badge">-</span>
             <span id="liveClock" class="clock-badge">00:00:00</span>
-            <span id="status" class="status-badge">Lokalni način</span>
+            <span id="status" class="status-badge">Nalagam...</span>
         </div>
     </div>
 
@@ -454,7 +454,7 @@
             <span class="change-user-link" onclick="promptChangeUser()">(Zamenjaj)</span>
         </div>
         <div style="display:flex; gap: 6px;">
-            <button class="icon-btn" onclick="fetchData()" title="Osveži podatke">🔄</button>
+            <button class="icon-btn" onclick="fetchDataFromCloud()" title="Osveži iz oblaka">🔄</button>
             <button class="icon-btn" onclick="openModal()" title="Skrbniške nastavitve">⚙️</button>
         </div>
     </div>
@@ -512,26 +512,24 @@
             </div>
 
             <div class="admin-section">
-                <h3>💾 Stabilnost in varnostne kopije</h3>
-                <p style="font-size: 10px; color: #666; margin-bottom: 8px;">Aplikacija samodejno shranjuje stanje v brskalnik. Tukaj lahko prenašaš ali nalagaš varnostne kopije:</p>
+                <h3>💾 Varnostne kopije in izvoz</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="downloadJsonFile()">📥 Prenesi JSON</button>
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz računalnika</button>
                     <input type="file" id="fileUploadInput" accept=".json" style="display: none;" onchange="handleFileLoadedFromPC(event)">
                 </div>
-                <div class="config-field">
-                    <label>Obnovitev iz prejšnjih dnevnih varnostnih kopij:</label>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;">
-                        <select id="backupHistorySelect" onchange="restoreSelectedHistoryBackup(this.value)">
-                            <option value="">-- Izberi prejšnji backup --</option>
-                        </select>
-                        <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 8px 12px; height: 33px;" onclick="createManualLocalBackup()">💾 Shrani takoj</button>
-                    </div>
-                </div>
             </div>
 
             <div class="admin-section">
-                <h3>⚙️ Povezave</h3>
+                <h3>⚙️ Konfiguracija oblaka (JSONBin & Webhook)</h3>
+                <div class="config-field">
+                    <label>JSONBin API Ključ (X-Master-Key):</label>
+                    <input type="text" id="jsonbinApiKey" placeholder="Vnesi API ključ" readonly style="background:#f1f5f9; color:#64748b;">
+                </div>
+                <div class="config-field">
+                    <label>JSONBin Bin ID:</label>
+                    <input type="text" id="jsonbinBinId" placeholder="Vnesi Bin ID" readonly style="background:#f1f5f9; color:#64748b;">
+                </div>
                 <div class="config-field">
                     <label>Teams Webhook URL:</label>
                     <input type="text" id="webhookUrl">
@@ -548,6 +546,10 @@
     let team = [...defaultTeam];
 
     let WEBHOOK = localStorage.getItem('WEBHOOK') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    
+    // Fiksno nastavljeni podatki za JSONBin oblak
+    const JSONBIN_BIN_ID = "6a635852da38895dfe89ba53";
+    const JSONBIN_API_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
 
     let counts = {};
     let absent = {};
@@ -584,7 +586,7 @@
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
             render();
-            saveDailyLocalBackup();
+            syncToCloud();
         }
     }
 
@@ -609,7 +611,7 @@
         document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
         renderAdminData();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function promptChangeUser() {
@@ -636,92 +638,84 @@
         fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(adaptiveCardPayload) }).catch(() => {});
     }
 
-    function saveDailyLocalBackup(forceManual = false) {
-        if (!team || team.length === 0) return;
+    // Sinhronizacija z JSONBin v oblaku
+    function syncToCloud() {
+        document.getElementById('status').innerText = '⏳ Sinhroniziram...';
+        const payload = {
+            team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
+            currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
+            forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
+            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI')
+        };
 
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (response.ok) {
+                document.getElementById('status').innerText = '✅ V oblaku';
+                saveLocalCache();
+            } else {
+                document.getElementById('status').innerText = '⚠️ Napaka oblaka';
+            }
+        })
+        .catch(() => {
+            document.getElementById('status').innerText = '⚠️ Brez povezave';
+        });
+    }
+
+    function fetchDataFromCloud() {
+        document.getElementById('status').innerText = '⏳ Nalagam...';
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: {
+                'X-Master-Key': JSONBIN_API_KEY
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const record = data.record;
+            if (record && record.team && Array.isArray(record.team)) {
+                team = record.team;
+                counts = record.counts || {};
+                absent = record.absent || {};
+                tempAbsent = record.tempAbsent || {};
+                currentRoundPaid = record.currentRoundPaid || {};
+                lastPaymentDates = record.lastPaymentDates || {};
+                forcedNextPerson = record.forcedNextPerson || null;
+                confirmedDateStr = record.confirmedDateStr || "";
+                confirmedPersonName = record.confirmedPersonName || "";
+                
+                localStorage.setItem('confirmedDateStr', confirmedDateStr);
+                localStorage.setItem('confirmedPersonName', confirmedPersonName);
+                
+                render();
+                renderAdminData();
+                document.getElementById('status').innerText = '✅ Osveženo';
+                alert("Podatki uspešno osveženi iz oblaka!");
+            }
+        })
+        .catch(err => {
+            document.getElementById('status').innerText = '❌ Napaka';
+            alert("Napaka pri branju iz oblaka. Preveri povezavo.");
+        });
+    }
+
+    function saveLocalCache() {
         const backupData = {
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI'), timeMs: Date.now()
+            confirmedPersonName: confirmedPersonName
         };
+        localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
         localStorage.setItem('confirmedDateStr', confirmedDateStr);
         localStorage.setItem('confirmedPersonName', confirmedPersonName);
-
-        let history = [];
-        try {
-            const rawHistory = localStorage.getItem('coffee_app_backup_history');
-            if (rawHistory) history = JSON.parse(rawHistory);
-        } catch(e) { history = []; }
-
-        if (!forceManual && history.length > 0 && (backupData.timeMs - history[0].timeMs) / (1000 * 60) < 30) {
-            history[0] = backupData;
-        } else {
-            history.unshift(backupData);
-            if (history.length > 10) history = history.slice(0, 10);
-        }
-        localStorage.setItem('coffee_app_backup_history', JSON.stringify(history));
-        localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
-        document.getElementById('status').innerText = '✅ Shranjeno';
-    }
-
-    function createManualLocalBackup() {
-        saveDailyLocalBackup(true);
-        updateBackupHistoryUI();
-        alert("Lokalna varnostna kopija je shranjena!");
-    }
-
-    function updateBackupHistoryUI() {
-        const selectEl = document.getElementById('backupHistorySelect');
-        if (!selectEl) return;
-        selectEl.innerHTML = '<option value="">-- Izberi prejšnji backup --</option>';
-        let history = [];
-        try { history = JSON.parse(localStorage.getItem('coffee_app_backup_history') || '[]'); } catch(e) {}
-        history.forEach((item, index) => {
-            const opt = document.createElement('option');
-            opt.value = index;
-            opt.innerText = `Backup #${index + 1} (${item.timestamp || ''})`;
-            selectEl.appendChild(opt);
-        });
-    }
-
-    function restoreFromLocalBackup(index = 0) {
-        if (loggedInUser !== "Filipšek") {
-            alert("Samo uporabnik Filipšek lahko obnavlja varnostne kopije!");
-            return;
-        }
-        let history = [];
-        try { history = JSON.parse(localStorage.getItem('coffee_app_backup_history') || '[]'); } catch(e) {}
-        if (history.length === 0) {
-            try { const single = localStorage.getItem('coffee_app_daily_backup'); if (single) history.push(JSON.parse(single)); } catch(e) {}
-        }
-        if (!history[index]) {
-            alert("Izbrani backup ne obstaja!");
-            return;
-        }
-        if (confirm(`Ali res želiš obnoviti podatke iz backupa #${index + 1}?`)) {
-            const data = history[index];
-            if (data.team && data.team.length > 0) team = data.team;
-            counts = data.counts || {};
-            absent = data.absent || {};
-            tempAbsent = data.tempAbsent || {};
-            currentRoundPaid = data.currentRoundPaid || {};
-            lastPaymentDates = data.lastPaymentDates || {};
-            forcedNextPerson = data.forcedNextPerson || null;
-            confirmedDateStr = data.confirmedDateStr || "";
-            confirmedPersonName = data.confirmedPersonName || "";
-            localStorage.setItem('confirmedDateStr', confirmedDateStr);
-            localStorage.setItem('confirmedPersonName', confirmedPersonName);
-            render();
-            renderAdminData();
-            saveDailyLocalBackup();
-            alert("Podatki so bili uspešno obnovljeni!");
-            closeModal();
-        }
-    }
-
-    function restoreSelectedHistoryBackup(val) {
-        if (val !== "") restoreFromLocalBackup(parseInt(val));
     }
 
     function downloadJsonFile() {
@@ -762,12 +756,11 @@
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
                     confirmedPersonName = data.confirmedPersonName || "";
-                    localStorage.setItem('confirmedDateStr', confirmedDateStr);
-                    localStorage.setItem('confirmedPersonName', confirmedPersonName);
+                    
                     render();
                     renderAdminData();
-                    saveDailyLocalBackup();
-                    alert("Uspešno naloženo!");
+                    syncToCloud();
+                    alert("Uspešno naloženo in sinhronizirano!");
                     closeModal();
                 }
             } catch(err) { alert("Napaka pri branju JSON datoteke."); }
@@ -816,19 +809,40 @@
             localStorage.setItem('lastRecordedDate', todayStr);
         }
 
-        document.getElementById('status').innerText = '✅ Pripravljeno';
         if (!loggedInUser) {
             checkLogin();
         } else {
             document.getElementById('currentLoggedInUser').innerText = loggedInUser;
         }
+        
         render();
         renderAdminData();
-    }
 
-    function fetchData() {
-        initApp();
-        alert("Podatki osveženi iz lokalnega pomnilnika!");
+        // Takoj poskusi povleči zadnje podatke iz oblaka
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const record = data.record;
+            if (record && record.team && Array.isArray(record.team)) {
+                team = record.team;
+                counts = record.counts || {};
+                absent = record.absent || {};
+                tempAbsent = record.tempAbsent || {};
+                currentRoundPaid = record.currentRoundPaid || {};
+                lastPaymentDates = record.lastPaymentDates || {};
+                forcedNextPerson = record.forcedNextPerson || null;
+                confirmedDateStr = record.confirmedDateStr || "";
+                confirmedPersonName = record.confirmedPersonName || "";
+                render();
+                renderAdminData();
+                document.getElementById('status').innerText = '✅ V oblaku';
+            }
+        }).catch(() => {
+            document.getElementById('status').innerText = '⚠️ Lokalni način';
+        });
     }
 
     function isUnavailable(name) { return absent[name] || tempAbsent[name]; }
@@ -933,7 +947,7 @@
 
             render();
             renderAdminData();
-            saveDailyLocalBackup();
+            syncToCloud();
         }
     }
 
@@ -951,7 +965,7 @@
             
             render();
             renderAdminData();
-            saveDailyLocalBackup();
+            syncToCloud();
         }
     }
 
@@ -961,7 +975,7 @@
         else forcedNextPerson = name;
         render();
         renderAdminData();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function toggleTempAbsent(name) {
@@ -970,7 +984,7 @@
         else forcedNextPerson = name;
         render();
         renderAdminData();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function toggleVolunteerMenu() {
@@ -1000,7 +1014,7 @@
                     lastPaymentDates[name] = new Date().toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
                     render();
                     renderAdminData();
-                    saveDailyLocalBackup();
+                    syncToCloud();
                 }
             };
             grid.appendChild(btn);
@@ -1044,7 +1058,7 @@
         forcedNextPerson = select.value;
         render();
         renderAdminData();
-        saveDailyLocalBackup();
+        syncToCloud();
         alert(`Naslednji v vrsti je uspešno nastavljen na: ${forcedNextPerson}`);
     }
 
@@ -1055,7 +1069,7 @@
         const temp = team[idx]; team[idx] = team[newIndex]; team[newIndex] = temp;
         renderAdminData();
         render();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function updateMemberCount(name, change) {
@@ -1063,7 +1077,7 @@
         counts[name] = Math.max(0, (counts[name] || 0) + change);
         renderAdminData();
         render();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function updateMemberDate(name, newDateVal) {
@@ -1071,7 +1085,7 @@
         lastPaymentDates[name] = newDateVal;
         renderAdminData();
         render();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function renderAdminData() {
@@ -1114,7 +1128,6 @@
             `;
             tbody.appendChild(tr);
         });
-        updateBackupHistoryUI();
     }
 
     function addMember() {
@@ -1131,7 +1144,7 @@
         input.value = '';
         render();
         renderAdminData();
-        saveDailyLocalBackup();
+        syncToCloud();
     }
 
     function removeMember(name) {
@@ -1145,7 +1158,7 @@
             delete lastPaymentDates[name];
             render();
             renderAdminData();
-            saveDailyLocalBackup();
+            syncToCloud();
         }
     }
 
@@ -1166,6 +1179,8 @@
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
             document.getElementById('webhookUrl').value = WEBHOOK;
+            document.getElementById('jsonbinApiKey').value = JSONBIN_API_KEY;
+            document.getElementById('jsonbinBinId').value = JSONBIN_BIN_ID;
             renderAdminData();
         } else {
             document.getElementById('authError').style.display = 'block';
@@ -1176,8 +1191,10 @@
         if (loggedInUser !== "Filipšek") return;
         WEBHOOK = document.getElementById('webhookUrl').value;
         localStorage.setItem('WEBHOOK', WEBHOOK);
-        alert("Shranjeno!");
+        
+        alert("Shranjeno in sinhronizirano!");
         closeModal();
+        syncToCloud();
     }
 
     initApp();

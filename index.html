@@ -179,7 +179,7 @@
         }
         .volunteer-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 6px;
         }
         .btn-volunteer-name {
@@ -196,7 +196,7 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 18px;
         }
@@ -477,6 +477,18 @@
 
         <div id="settingsView" style="display: none;">
             <div class="admin-section" style="border-top: none; padding-top: 0;">
+                <h3>🎨 Postavitev in vizualika</h3>
+                <div class="config-field">
+                    <label>Število stolpcev za kartice sodelavcev:</label>
+                    <select id="gridColumnsSelect" onchange="updateGridColumnsSetting(this.value)">
+                        <option value="1">1 stolpec</option>
+                        <option value="2" selected>2 stolpca</option>
+                        <option value="3">3 stolpci</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-section">
                 <h3>🎯 Nastavitev naslednjega v vrsti</h3>
                 <div class="config-field">
                     <label>Izberi, kdo je naslednji na vrsti za kavo:</label>
@@ -562,6 +574,8 @@
     let tempAbsent = {}; 
     let currentRoundPaid = {};
     let lastPaymentDates = {}; 
+    let gridColumns = localStorage.getItem('gridColumns') || "2";
+
     let lastRecordedDate = localStorage.getItem('lastRecordedDate') || "";
     let loggedInUser = localStorage.getItem('loggedInUser') || "";
 
@@ -571,7 +585,6 @@
     let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
     let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
 
-    // Varna funkcija za združevanje števcev (preprečuje izgubo in prepisovanje z 0)
     function mergeCounts(incomingCounts) {
         if (!incomingCounts) return;
         team.forEach(name => {
@@ -658,13 +671,32 @@
         fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(adaptiveCardPayload) }).catch(() => {});
     }
 
+    function applyGridColumnsStyle() {
+        const gridElem = document.getElementById('cards');
+        if (gridElem) {
+            gridElem.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
+        }
+        const selectElem = document.getElementById('gridColumnsSelect');
+        if (selectElem) {
+            selectElem.value = gridColumns;
+        }
+    }
+
+    function updateGridColumnsSetting(val) {
+        gridColumns = val;
+        localStorage.setItem('gridColumns', gridColumns);
+        applyGridColumnsStyle();
+        syncToCloud();
+    }
+
     function syncToCloud() {
         document.getElementById('status').innerText = '⏳ Sinhroniziram...';
         const payload = {
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI')
+            confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
+            timestamp: new Date().toLocaleString('sl-SI')
         };
 
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
@@ -694,9 +726,7 @@
         document.getElementById('status').innerText = '⏳ Nalagam...';
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
-            headers: {
-                'X-Master-Key': JSONBIN_API_KEY
-            }
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
         })
         .then(res => res.json())
         .then(data => {
@@ -711,10 +741,15 @@
                 forcedNextPerson = record.forcedNextPerson || null;
                 confirmedDateStr = record.confirmedDateStr || "";
                 confirmedPersonName = record.confirmedPersonName || "";
+                if (record.gridColumns) {
+                    gridColumns = record.gridColumns;
+                    localStorage.setItem('gridColumns', gridColumns);
+                }
                 
                 localStorage.setItem('confirmedDateStr', confirmedDateStr);
                 localStorage.setItem('confirmedPersonName', confirmedPersonName);
                 
+                applyGridColumnsStyle();
                 render();
                 renderAdminData();
                 saveLocalCache();
@@ -733,11 +768,13 @@
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI')
+            confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
+            timestamp: new Date().toLocaleString('sl-SI')
         };
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
         localStorage.setItem('confirmedDateStr', confirmedDateStr);
         localStorage.setItem('confirmedPersonName', confirmedPersonName);
+        localStorage.setItem('gridColumns', gridColumns);
 
         try {
             let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
@@ -788,7 +825,12 @@
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
                     confirmedPersonName = data.confirmedPersonName || "";
+                    if (data.gridColumns) {
+                        gridColumns = data.gridColumns;
+                        localStorage.setItem('gridColumns', gridColumns);
+                    }
 
+                    applyGridColumnsStyle();
                     render();
                     renderAdminData();
                     syncToCloud();
@@ -806,7 +848,8 @@
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI')
+            confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
+            timestamp: new Date().toLocaleString('sl-SI')
         };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
         const downloadAnchor = document.createElement('a');
@@ -839,7 +882,12 @@
                     forcedNextPerson = data.forcedNextPerson || null;
                     confirmedDateStr = data.confirmedDateStr || "";
                     confirmedPersonName = data.confirmedPersonName || "";
+                    if (data.gridColumns) {
+                        gridColumns = data.gridColumns;
+                        localStorage.setItem('gridColumns', gridColumns);
+                    }
                     
+                    applyGridColumnsStyle();
                     render();
                     renderAdminData();
                     syncToCloud();
@@ -868,6 +916,10 @@
                 forcedNextPerson = data.forcedNextPerson || null;
                 confirmedDateStr = data.confirmedDateStr || "";
                 confirmedPersonName = data.confirmedPersonName || "";
+                if (data.gridColumns) {
+                    gridColumns = data.gridColumns;
+                    localStorage.setItem('gridColumns', gridColumns);
+                }
             }
         } catch (e) {}
 
@@ -894,6 +946,8 @@
             localStorage.setItem('lastRecordedDate', todayStr);
         }
 
+        applyGridColumnsStyle();
+
         if (!loggedInUser) {
             checkLogin();
         } else {
@@ -908,7 +962,6 @@
             saveLocalCache();
         }, 2 * 60 * 60 * 1000);
 
-        // OBVEZNO BRANJE IZ OBLAKA OB ZAGONU (preprečuje povoz starega stanja)
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
@@ -926,6 +979,11 @@
                 forcedNextPerson = record.forcedNextPerson || null;
                 confirmedDateStr = record.confirmedDateStr || "";
                 confirmedPersonName = record.confirmedPersonName || "";
+                if (record.gridColumns) {
+                    gridColumns = record.gridColumns;
+                    localStorage.setItem('gridColumns', gridColumns);
+                }
+                applyGridColumnsStyle();
                 render();
                 renderAdminData();
                 saveLocalCache();
@@ -1273,6 +1331,7 @@
             document.getElementById('webhookUrl').value = WEBHOOK;
             document.getElementById('jsonbinApiKey').value = JSONBIN_API_KEY;
             document.getElementById('jsonbinBinId').value = JSONBIN_BIN_ID;
+            applyGridColumnsStyle();
             renderAdminData();
         } else {
             document.getElementById('authError').style.display = 'block';

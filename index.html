@@ -584,18 +584,70 @@
     
     let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
     let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
+    let appTimestamp = Date.now();
 
-    function mergeCounts(incomingCounts) {
-        if (!incomingCounts) return;
+    // Pomožna funkcija za pretvorbo datuma v timestamp za primerjavo
+    function parseDateToMs(dateStr) {
+        if (!dateStr) return 0;
+        // Poskusi parsirati običajne formate datuma
+        let parsed = Date.parse(dateStr);
+        if (!isNaN(parsed)) return parsed;
+        return 0;
+    }
+
+    // Pametno združevanje (Merge) vseh podatkov
+    function mergeData(incoming) {
+        if (!incoming) return;
+        
         team.forEach(name => {
-            const incomingVal = Number(incomingCounts[name] || 0);
+            // 1. Združevanje števcev (najvišja vrednost)
+            const incomingVal = Number(incoming.counts && incoming.counts[name] || 0);
             const currentVal = Number(counts[name] || 0);
             if (incomingVal === 0 && currentVal > 0) {
                 counts[name] = currentVal;
             } else {
                 counts[name] = Math.max(currentVal, incomingVal);
             }
+
+            // 2. Združevanje currentRoundPaid (če je katera stran na true, ostane true)
+            if (incoming.currentRoundPaid && incoming.currentRoundPaid[name]) {
+                currentRoundPaid[name] = true;
+            }
+
+            // 3. Združevanje lastPaymentDates (najnovejši datum obvelja)
+            const incomingDateStr = incoming.lastPaymentDates && incoming.lastPaymentDates[name] || "";
+            const currentDateStr = lastPaymentDates[name] || "";
+            if (incomingDateStr) {
+                if (!currentDateStr) {
+                    lastPaymentDates[name] = incomingDateStr;
+                } else {
+                    // Primerjava formatov datumov ali zapisov
+                    let incMs = parseDateToMs(incomingDateStr);
+                    let curMs = parseDateToMs(currentDateStr);
+                    if (incMs >= curMs) {
+                        lastPaymentDates[name] = incomingDateStr;
+                    }
+                }
+            }
         });
+
+        // Združevanje ostalih stanjskih spremenljivk
+        if (incoming.absent) {
+            Object.keys(incoming.absent).forEach(k => {
+                if (incoming.absent[k]) absent[k] = true;
+            });
+        }
+        if (incoming.tempAbsent) {
+            Object.keys(incoming.tempAbsent).forEach(k => {
+                if (incoming.tempAbsent[k]) tempAbsent[k] = true;
+            });
+        }
+        if (incoming.confirmedDateStr && incoming.confirmedDateStr === new Date().toDateString()) {
+            if (incoming.confirmedPersonName) {
+                confirmedDateStr = incoming.confirmedDateStr;
+                confirmedPersonName = incoming.confirmedPersonName;
+            }
+        }
     }
 
     function updateDateTime() {
@@ -689,14 +741,37 @@
         syncToCloud();
     }
 
-    function syncToCloud() {
+    // Samodejni sinhronizacijski PUT z zaščito pred dirko (Race Condition) in indikatorjem
+    function syncToCloud(onSuccessCallback) {
         document.getElementById('status').innerText = '⏳ Sinhroniziram...';
+        
+        // 1. Najprej potegni zadnje stanje iz oblaka (GET), nato spoji in shrani (PUT)
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.record) {
+                mergeData(data.record);
+            }
+            performPutRequest(onSuccessCallback);
+        })
+        .catch(() => {
+            // Če GET ne uspe (npr. ni povezave), vseeno poskusi poslat lokalne podatke ali pa označi napako
+            performPutRequest(onSuccessCallback);
+        });
+    }
+
+    function performPutRequest(onSuccessCallback) {
+        appTimestamp = Date.now();
         const payload = {
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
             confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
-            timestamp: new Date().toLocaleString('sl-SI')
+            timestamp: appTimestamp,
+            dateString: new Date().toLocaleString('sl-SI')
         };
 
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
@@ -711,14 +786,17 @@
             if (response.ok) {
                 document.getElementById('status').innerText = '✅ V oblaku';
                 saveLocalCache();
+                if (typeof onSuccessCallback === 'function') onSuccessCallback(true);
             } else {
                 document.getElementById('status').innerText = '⚠️ Napaka oblaka';
                 saveLocalCache();
+                if (typeof onSuccessCallback === 'function') onSuccessCallback(false);
             }
         })
         .catch(() => {
             document.getElementById('status').innerText = '⚠️ Brez povezave';
             saveLocalCache();
+            if (typeof onSuccessCallback === 'function') onSuccessCallback(false);
         });
     }
 
@@ -733,14 +811,8 @@
             const record = data.record;
             if (record && record.team && Array.isArray(record.team)) {
                 team = record.team;
-                mergeCounts(record.counts);
-                absent = record.absent || {};
-                tempAbsent = record.tempAbsent || {};
-                currentRoundPaid = record.currentRoundPaid || {};
-                lastPaymentDates = record.lastPaymentDates || {};
+                mergeData(record);
                 forcedNextPerson = record.forcedNextPerson || null;
-                confirmedDateStr = record.confirmedDateStr || "";
-                confirmedPersonName = record.confirmedPersonName || "";
                 if (record.gridColumns) {
                     gridColumns = record.gridColumns;
                     localStorage.setItem('gridColumns', gridColumns);
@@ -769,7 +841,8 @@
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
             confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
-            timestamp: new Date().toLocaleString('sl-SI')
+            timestamp: appTimestamp,
+            dateString: new Date().toLocaleString('sl-SI')
         };
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
         localStorage.setItem('confirmedDateStr', confirmedDateStr);
@@ -817,14 +890,8 @@
                 const data = backups[idx].data;
                 if (confirm(`Ali želiš obnoviti podatke iz izbrane kopije (${backups[idx].time})?`)) {
                     if (data.team && data.team.length > 0) team = data.team;
-                    mergeCounts(data.counts);
-                    absent = data.absent || {};
-                    tempAbsent = data.tempAbsent || {};
-                    currentRoundPaid = data.currentRoundPaid || {};
-                    lastPaymentDates = data.lastPaymentDates || {};
+                    mergeData(data);
                     forcedNextPerson = data.forcedNextPerson || null;
-                    confirmedDateStr = data.confirmedDateStr || "";
-                    confirmedPersonName = data.confirmedPersonName || "";
                     if (data.gridColumns) {
                         gridColumns = data.gridColumns;
                         localStorage.setItem('gridColumns', gridColumns);
@@ -849,7 +916,8 @@
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
             confirmedPersonName: confirmedPersonName, gridColumns: gridColumns,
-            timestamp: new Date().toLocaleString('sl-SI')
+            timestamp: appTimestamp,
+            dateString: new Date().toLocaleString('sl-SI')
         };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
         const downloadAnchor = document.createElement('a');
@@ -874,14 +942,8 @@
                 const data = JSON.parse(e.target.result);
                 if (confirm(`Naloži podatke iz datoteke (${file.name})?`)) {
                     if (data.team && data.team.length > 0) team = data.team;
-                    mergeCounts(data.counts);
-                    absent = data.absent || {};
-                    tempAbsent = data.tempAbsent || {};
-                    currentRoundPaid = data.currentRoundPaid || {};
-                    lastPaymentDates = data.lastPaymentDates || {};
+                    mergeData(data);
                     forcedNextPerson = data.forcedNextPerson || null;
-                    confirmedDateStr = data.confirmedDateStr || "";
-                    confirmedPersonName = data.confirmedPersonName || "";
                     if (data.gridColumns) {
                         gridColumns = data.gridColumns;
                         localStorage.setItem('gridColumns', gridColumns);
@@ -901,6 +963,7 @@
     }
 
     function initApp() {
+        // 1. Najprej naloži lokalni predpomnilnik
         try {
             const cached = localStorage.getItem('coffee_app_daily_backup');
             if (cached) {
@@ -908,14 +971,9 @@
                 if (data.team && Array.isArray(data.team) && data.team.length > 0) {
                     team = data.team;
                 }
-                mergeCounts(data.counts);
-                absent = data.absent || {};
-                tempAbsent = data.tempAbsent || {};
-                currentRoundPaid = data.currentRoundPaid || {};
-                lastPaymentDates = data.lastPaymentDates || {};
+                mergeData(data);
                 forcedNextPerson = data.forcedNextPerson || null;
-                confirmedDateStr = data.confirmedDateStr || "";
-                confirmedPersonName = data.confirmedPersonName || "";
+                appTimestamp = data.timestamp || Date.now();
                 if (data.gridColumns) {
                     gridColumns = data.gridColumns;
                     localStorage.setItem('gridColumns', gridColumns);
@@ -962,6 +1020,7 @@
             saveLocalCache();
         }, 2 * 60 * 60 * 1000);
 
+        // 2. Preverjanje in uvoz iz oblaka z zaščito pred preglasitvijo (časovni žig / pametno združevanje)
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
@@ -969,24 +1028,25 @@
         .then(res => res.json())
         .then(data => {
             const record = data.record;
-            if (record && record.team && Array.isArray(record.team)) {
-                team = record.team;
-                mergeCounts(record.counts);
-                absent = record.absent || {};
-                tempAbsent = record.tempAbsent || {};
-                currentRoundPaid = record.currentRoundPaid || {};
-                lastPaymentDates = record.lastPaymentDates || {};
-                forcedNextPerson = record.forcedNextPerson || null;
-                confirmedDateStr = record.confirmedDateStr || "";
-                confirmedPersonName = record.confirmedPersonName || "";
-                if (record.gridColumns) {
-                    gridColumns = record.gridColumns;
-                    localStorage.setItem('gridColumns', gridColumns);
+            if (record) {
+                // Preveri časovni žig - če je v oblaku novejše ali enako, združi; če je lokalno sveže (npr. offline potrditev), ne povozi slepo ampak pametno združi z mergedatami
+                const cloudTimestamp = record.timestamp || 0;
+                if (cloudTimestamp >= appTimestamp || !appTimestamp) {
+                    if (record.team && Array.isArray(record.team)) team = record.team;
+                    mergeData(record);
+                    forcedNextPerson = record.forcedNextPerson || null;
+                    if (record.gridColumns) {
+                        gridColumns = record.gridColumns;
+                        localStorage.setItem('gridColumns', gridColumns);
+                    }
+                    applyGridColumnsStyle();
+                    render();
+                    renderAdminData();
+                    saveLocalCache();
+                } else {
+                    // Lokalno stanje je novejše (npr. delo v offline načinu), zato sinhroniziramo naprej v oblak
+                    syncToCloud();
                 }
-                applyGridColumnsStyle();
-                render();
-                renderAdminData();
-                saveLocalCache();
                 document.getElementById('status').innerText = '✅ V oblaku';
             }
         }).catch(() => {
@@ -1096,7 +1156,13 @@
 
             render();
             renderAdminData();
-            syncToCloud();
+            
+            // Sinhronizacija z vizualnim opozorilom/blokado v primeru neuspeha
+            syncToCloud((success) => {
+                if (!success) {
+                    alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela! Podatki so shranjeni samo lokalno na tej napravi. Prosim preveri internetno povezavo.");
+                }
+            });
         }
     }
 
@@ -1163,7 +1229,12 @@
                     lastPaymentDates[name] = new Date().toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' });
                     render();
                     renderAdminData();
-                    syncToCloud();
+                    
+                    syncToCloud((success) => {
+                        if (!success) {
+                            alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela! Podatki so shranjeni lokalno.");
+                        }
+                    });
                 }
             };
             grid.appendChild(btn);
@@ -1325,7 +1396,8 @@
     function handlePasswordKey(event) { if (event.key === 'Enter') checkPassword(); }
 
     function checkPassword() {
-        if (document.getElementById('passInput').value === '1995') {
+        // Spremenjeno geslo v "geslo"
+        if (document.getElementById('passInput').value === 'geslo') {
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
             document.getElementById('webhookUrl').value = WEBHOOK;

@@ -495,7 +495,7 @@
                         <thead>
                             <tr>
                                 <th>Ime</th>
-                                <th>Štev.</th>
+                                <th>Štev. (Ročni vpis)</th>
                                 <th>Bilanca</th>
                                 <th>Zadnji datum</th>
                                 <th>Akcije</th>
@@ -513,6 +513,13 @@
 
             <div class="admin-section">
                 <h3>💾 Varnostne kopije in izvoz</h3>
+                <div class="config-field">
+                    <label>Izberi lokalno varnostno kopijo (samodejno shranjene):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="localBackupSelect" style="flex: 1;"></select>
+                        <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 6px 12px;" onclick="restoreSelectedLocalBackup()">Obnovi</button>
+                    </div>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="downloadJsonFile()">📥 Prenesi JSON</button>
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz računalnika</button>
@@ -547,7 +554,6 @@
 
     let WEBHOOK = localStorage.getItem('WEBHOOK') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
     
-    // Fiksno nastavljeni podatki za JSONBin oblak
     const JSONBIN_BIN_ID = "6a635852da38895dfe89ba53";
     const JSONBIN_API_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
 
@@ -564,6 +570,21 @@
     
     let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
     let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
+
+    // Varnostna funkcija za varno združevanje števcev (preprečuje izgubo in prepisovanje z 0)
+    function mergeCounts(incomingCounts) {
+        if (!incomingCounts) return;
+        team.forEach(name => {
+            const incomingVal = Number(incomingCounts[name] || 0);
+            const currentVal = Number(counts[name] || 0);
+            // Če je prejeti podatek 0 ali prazen, hkrati pa je lokalno stanje višje (polno), ohranimo obstoječe stanje!
+            if (incomingVal === 0 && currentVal > 0) {
+                counts[name] = currentVal;
+            } else {
+                counts[name] = Math.max(currentVal, incomingVal);
+            }
+        });
+    }
 
     function updateDateTime() {
         const now = new Date();
@@ -638,7 +659,6 @@
         fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(adaptiveCardPayload) }).catch(() => {});
     }
 
-    // Sinhronizacija z JSONBin v oblaku
     function syncToCloud() {
         document.getElementById('status').innerText = '⏳ Sinhroniziram...';
         const payload = {
@@ -662,10 +682,12 @@
                 saveLocalCache();
             } else {
                 document.getElementById('status').innerText = '⚠️ Napaka oblaka';
+                saveLocalCache();
             }
         })
         .catch(() => {
             document.getElementById('status').innerText = '⚠️ Brez povezave';
+            saveLocalCache();
         });
     }
 
@@ -682,7 +704,7 @@
             const record = data.record;
             if (record && record.team && Array.isArray(record.team)) {
                 team = record.team;
-                counts = record.counts || {};
+                mergeCounts(record.counts);
                 absent = record.absent || {};
                 tempAbsent = record.tempAbsent || {};
                 currentRoundPaid = record.currentRoundPaid || {};
@@ -696,6 +718,7 @@
                 
                 render();
                 renderAdminData();
+                saveLocalCache();
                 document.getElementById('status').innerText = '✅ Osveženo';
                 alert("Podatki uspešno osveženi iz oblaka!");
             }
@@ -711,11 +734,72 @@
             team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
             currentRoundPaid: currentRoundPaid, lastPaymentDates: lastPaymentDates,
             forcedNextPerson: forcedNextPerson, confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName
+            confirmedPersonName: confirmedPersonName, timestamp: new Date().toLocaleString('sl-SI')
         };
         localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
         localStorage.setItem('confirmedDateStr', confirmedDateStr);
         localStorage.setItem('confirmedPersonName', confirmedPersonName);
+
+        try {
+            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
+            const nowStr = new Date().toLocaleString('sl-SI');
+            backups.unshift({ time: nowStr, data: backupData });
+            if (backups.length > 10) backups = backups.slice(0, 10);
+            localStorage.setItem('coffee_app_history_backups', JSON.stringify(backups));
+            populateBackupSelect();
+        } catch(e) {}
+    }
+
+    function populateBackupSelect() {
+        const select = document.getElementById('localBackupSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        try {
+            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
+            if (backups.length === 0) {
+                const opt = document.createElement('option');
+                opt.innerText = "Ni razpoložljivih kopij";
+                select.appendChild(opt);
+                return;
+            }
+            backups.forEach((b, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerText = `Kopija od: ${b.time}`;
+                select.appendChild(opt);
+            });
+        } catch(e) {}
+    }
+
+    function restoreSelectedLocalBackup() {
+        const select = document.getElementById('localBackupSelect');
+        if (!select || select.value === "") return;
+        const idx = parseInt(select.value);
+        try {
+            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
+            if (backups[idx] && backups[idx].data) {
+                const data = backups[idx].data;
+                if (confirm(`Ali želiš obnoviti podatke iz izbrane kopije (${backups[idx].time})?`)) {
+                    if (data.team && data.team.length > 0) team = data.team;
+                    mergeCounts(data.counts);
+                    absent = data.absent || {};
+                    tempAbsent = data.tempAbsent || {};
+                    currentRoundPaid = data.currentRoundPaid || {};
+                    lastPaymentDates = data.lastPaymentDates || {};
+                    forcedNextPerson = data.forcedNextPerson || null;
+                    confirmedDateStr = data.confirmedDateStr || "";
+                    confirmedPersonName = data.confirmedPersonName || "";
+
+                    render();
+                    renderAdminData();
+                    syncToCloud();
+                    alert("Podatki uspešno obnovljeni iz lokalne kopije!");
+                    closeModal();
+                }
+            }
+        } catch(e) {
+            alert("Napaka pri obnavljanju kopije.");
+        }
     }
 
     function downloadJsonFile() {
@@ -748,7 +832,7 @@
                 const data = JSON.parse(e.target.result);
                 if (confirm(`Naloži podatke iz datoteke (${file.name})?`)) {
                     if (data.team && data.team.length > 0) team = data.team;
-                    counts = data.counts || {};
+                    mergeCounts(data.counts);
                     absent = data.absent || {};
                     tempAbsent = data.tempAbsent || {};
                     currentRoundPaid = data.currentRoundPaid || {};
@@ -777,12 +861,14 @@
                 if (data.team && Array.isArray(data.team) && data.team.length > 0) {
                     team = data.team;
                 }
-                counts = data.counts || {};
+                mergeCounts(data.counts);
                 absent = data.absent || {};
                 tempAbsent = data.tempAbsent || {};
                 currentRoundPaid = data.currentRoundPaid || {};
                 lastPaymentDates = data.lastPaymentDates || {};
                 forcedNextPerson = data.forcedNextPerson || null;
+                confirmedDateStr = data.confirmedDateStr || "";
+                confirmedPersonName = data.confirmedPersonName || "";
             }
         } catch (e) {}
 
@@ -817,8 +903,12 @@
         
         render();
         renderAdminData();
+        populateBackupSelect();
 
-        // Takoj poskusi povleči zadnje podatke iz oblaka
+        setInterval(() => {
+            saveLocalCache();
+        }, 2 * 60 * 60 * 1000);
+
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
@@ -828,7 +918,7 @@
             const record = data.record;
             if (record && record.team && Array.isArray(record.team)) {
                 team = record.team;
-                counts = record.counts || {};
+                mergeCounts(record.counts);
                 absent = record.absent || {};
                 tempAbsent = record.tempAbsent || {};
                 currentRoundPaid = record.currentRoundPaid || {};
@@ -838,6 +928,7 @@
                 confirmedPersonName = record.confirmedPersonName || "";
                 render();
                 renderAdminData();
+                saveLocalCache();
                 document.getElementById('status').innerText = '✅ V oblaku';
             }
         }).catch(() => {
@@ -1072,11 +1163,15 @@
         syncToCloud();
     }
 
-    function updateMemberCount(name, change) {
+    // Funkcija za ročni vnos in shranjevanje stanja števca
+    function setMemberCount(name, val) {
         if (loggedInUser !== "Filipšek") return;
-        counts[name] = Math.max(0, (counts[name] || 0) + change);
+        const num = parseInt(val);
+        if (isNaN(num)) return;
+        counts[name] = Math.max(0, num);
         renderAdminData();
         render();
+        saveLocalCache();
         syncToCloud();
     }
 
@@ -1094,6 +1189,7 @@
         document.getElementById('addMemberSection').style.display = isFilipsek ? 'flex' : 'none';
 
         populateForcedNextSelect();
+        populateBackupSelect();
 
         const tbody = document.getElementById('adminTableBody');
         if (!tbody) return;
@@ -1113,10 +1209,7 @@
             tr.innerHTML = `
                 <td><b>${name}</b> ${isNext ? '<span style="color:#27ae60; font-size:9px; display:block;">(Naslednji)</span>' : ''}</td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span>${cnt}x</span>
-                        ${isFilipsek ? `<button style="cursor:pointer;" onclick="updateMemberCount('${name}', 1)">+</button><button style="cursor:pointer;" onclick="updateMemberCount('${name}', -1)">-</button>` : ''}
-                    </div>
+                    ${isFilipsek ? `<input type="number" min="0" value="${cnt}" style="width:65px; font-size:11px; padding:3px; text-align:center; border:1px solid #ccc; border-radius:4px;" onchange="setMemberCount('${name}', this.value)">` : `<span>${cnt}x</span>`}
                 </td>
                 <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
                 <td>

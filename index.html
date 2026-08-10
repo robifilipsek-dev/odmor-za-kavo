@@ -571,13 +571,12 @@
     let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
     let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
 
-    // Varnostna funkcija za varno združevanje števcev (preprečuje izgubo in prepisovanje z 0)
+    // Varna funkcija za združevanje števcev (preprečuje izgubo in prepisovanje z 0)
     function mergeCounts(incomingCounts) {
         if (!incomingCounts) return;
         team.forEach(name => {
             const incomingVal = Number(incomingCounts[name] || 0);
             const currentVal = Number(counts[name] || 0);
-            // Če je prejeti podatek 0 ali prazen, hkrati pa je lokalno stanje višje (polno), ohranimo obstoječe stanje!
             if (incomingVal === 0 && currentVal > 0) {
                 counts[name] = currentVal;
             } else {
@@ -909,6 +908,7 @@
             saveLocalCache();
         }, 2 * 60 * 60 * 1000);
 
+        // OBVEZNO BRANJE IZ OBLAKA OB ZAGONU (preprečuje povoz starega stanja)
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
@@ -1163,7 +1163,6 @@
         syncToCloud();
     }
 
-    // Funkcija za ročni vnos in shranjevanje stanja števca
     function setMemberCount(name, val) {
         if (loggedInUser !== "Filipšek") return;
         const num = parseInt(val);

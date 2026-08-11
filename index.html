@@ -598,6 +598,53 @@
         });
     }
 
+    function mergeCloudData(record) {
+        if (!record) return;
+        if (record.team && Array.isArray(record.team) && record.team.length > 0) {
+            team = record.team;
+        }
+        mergeCounts(record.counts);
+        
+        if (record.absent) {
+            Object.keys(record.absent).forEach(k => {
+                if (record.absent[k]) absent[k] = true;
+            });
+        }
+        if (record.tempAbsent) {
+            Object.keys(record.tempAbsent).forEach(k => {
+                if (record.tempAbsent[k]) tempAbsent[k] = true;
+            });
+        }
+        if (record.currentRoundPaid) {
+            Object.keys(record.currentRoundPaid).forEach(k => {
+                if (record.currentRoundPaid[k]) currentRoundPaid[k] = true;
+            });
+        }
+        if (record.lastPaymentDates) {
+            Object.keys(record.lastPaymentDates).forEach(k => {
+                if (record.lastPaymentDates[k] && !lastPaymentDates[k]) {
+                    lastPaymentDates[k] = record.lastPaymentDates[k];
+                }
+            });
+        }
+        if (record.forcedNextPerson) {
+            forcedNextPerson = record.forcedNextPerson;
+        }
+        
+        const todayStr = new Date().toDateString();
+        if (record.confirmedDateStr === todayStr && record.confirmedPersonName) {
+            confirmedDateStr = record.confirmedDateStr;
+            confirmedPersonName = record.confirmedPersonName;
+            localStorage.setItem('confirmedDateStr', confirmedDateStr);
+            localStorage.setItem('confirmedPersonName', confirmedPersonName);
+        }
+
+        if (record.gridColumns) {
+            gridColumns = record.gridColumns;
+            localStorage.setItem('gridColumns', gridColumns);
+        }
+    }
+
     function updateDateTime() {
         const now = new Date();
         document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
@@ -731,24 +778,8 @@
         .then(res => res.json())
         .then(data => {
             const record = data.record;
-            if (record && record.team && Array.isArray(record.team)) {
-                team = record.team;
-                mergeCounts(record.counts);
-                absent = record.absent || {};
-                tempAbsent = record.tempAbsent || {};
-                currentRoundPaid = record.currentRoundPaid || {};
-                lastPaymentDates = record.lastPaymentDates || {};
-                forcedNextPerson = record.forcedNextPerson || null;
-                confirmedDateStr = record.confirmedDateStr || "";
-                confirmedPersonName = record.confirmedPersonName || "";
-                if (record.gridColumns) {
-                    gridColumns = record.gridColumns;
-                    localStorage.setItem('gridColumns', gridColumns);
-                }
-                
-                localStorage.setItem('confirmedDateStr', confirmedDateStr);
-                localStorage.setItem('confirmedPersonName', confirmedPersonName);
-                
+            if (record) {
+                mergeCloudData(record);
                 applyGridColumnsStyle();
                 render();
                 renderAdminData();
@@ -969,20 +1000,8 @@
         .then(res => res.json())
         .then(data => {
             const record = data.record;
-            if (record && record.team && Array.isArray(record.team)) {
-                team = record.team;
-                mergeCounts(record.counts);
-                absent = record.absent || {};
-                tempAbsent = record.tempAbsent || {};
-                currentRoundPaid = record.currentRoundPaid || {};
-                lastPaymentDates = record.lastPaymentDates || {};
-                forcedNextPerson = record.forcedNextPerson || null;
-                confirmedDateStr = record.confirmedDateStr || "";
-                confirmedPersonName = record.confirmedPersonName || "";
-                if (record.gridColumns) {
-                    gridColumns = record.gridColumns;
-                    localStorage.setItem('gridColumns', gridColumns);
-                }
+            if (record) {
+                mergeCloudData(record);
                 applyGridColumnsStyle();
                 render();
                 renderAdminData();
@@ -1175,12 +1194,12 @@
         const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
 
         if (isAlreadyConfirmedToday) {
-            sendWebhookPayload("☕ VABILO NA KAVO ☕", `Uporabnik **${confirmedPersonName}** v tem trenutku vabi na kavo! Pridružite se v čajnici/kavarni.`);
+            sendWebhookPayload("☕ VABILO NA KAVO ☕", `Uporabnik **${confirmedPersonName}** v tem trenutku vabi na kavo! Se dobimo v jedilnici.`);
             alert("Poslano vabilo na kavo v Teams!");
         } else {
             const scheduledPerson = getNextPerson();
             const activeToday = temporaryVolunteerToday || scheduledPerson;
-            sendWebhookPayload("☕ ODMOR ZA KAVO ☕", `Bliža se čas za kavo! Odprite aplikacijo, da preverite kdo daje za kavo (po razporedu je na vrsti: **${activeToday}**).`);
+            sendWebhookPayload("☕ ODMOR ZA KAVO ☕", `Bliža se čas za kavo! Odprite aplikacijo, da preverite kdo daje za kavo (po razporedu je na vrsti: **${activeToday}**). Se dobimo v jedilnici.`);
             alert("Opomnik je bil poslan v Teams!");
         }
     }
@@ -1325,7 +1344,7 @@
     function handlePasswordKey(event) { if (event.key === 'Enter') checkPassword(); }
 
     function checkPassword() {
-        if (document.getElementById('passInput').value === '1995') {
+        if (document.getElementById('passInput').value === 'geslo') {
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
             document.getElementById('webhookUrl').value = WEBHOOK;

@@ -212,7 +212,6 @@
             flex-direction: column;
             justify-content: space-between;
             box-sizing: border-box;
-            cursor: default; 
         }
 
         .info-card.absent {
@@ -338,8 +337,8 @@
             background: white;
             padding: 24px;
             border-radius: 20px;
-            max-width: 450px;
-            width: 90%;
+            max-width: 520px;
+            width: 95%;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             text-align: center;
         }
@@ -377,9 +376,58 @@
         .admin-section { border-top: 1px dashed var(--border); margin-top: 14px; padding-top: 12px; }
         .admin-section h3 { font-size: 13px; margin: 0 0 8px 0; color: var(--primary); font-weight: 800; }
         
-        .member-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
-        .member-table th, .member-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eaeaea; vertical-align: middle; }
-        .member-table th { background: #fdfaf6; color: var(--primary); font-weight: 800; }
+        .member-card-admin {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .member-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            font-size: 12px;
+            color: var(--primary);
+        }
+        .member-controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 6px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .control-group label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .control-group input[type="number"] {
+            padding: 5px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 11px;
+            text-align: center;
+            background: #fff;
+        }
+        .control-group-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
 
         .config-field {
             display: flex;
@@ -398,31 +446,6 @@
             width: 100%;
         }
 
-        .forced-next-buttons-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-            margin-top: 4px;
-        }
-        .btn-forced-choice {
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            color: var(--text);
-            padding: 8px 6px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 11px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.1s ease;
-        }
-        .btn-forced-choice.active {
-            background: #eafaf1;
-            border-color: #27ae60;
-            color: #1e8449;
-            font-weight: 800;
-        }
-        
         .activity-log-box {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
@@ -430,7 +453,7 @@
             padding: 8px;
             font-family: monospace;
             font-size: 10px;
-            height: 120px;
+            height: 100px;
             overflow-y: auto;
             white-space: pre-wrap;
             margin-bottom: 8px;
@@ -529,32 +552,11 @@
             </div>
 
             <div class="admin-section">
-                <h3>🎯 Nastavitev naslednjega v vrsti</h3>
-                <div class="config-field">
-                    <label>Izberi, kdo je naslednji na vrsti za kavo:</label>
-                    <div id="forcedNextButtonsContainer" class="forced-next-buttons-grid"></div>
-                </div>
-            </div>
-
-            <div class="admin-section">
-                <h3>📊 Urejanje članov, števcev in statusa plačila</h3>
+                <h3>📊 Upravljanje članov in podatkov</h3>
                 <p id="adminPermissionWarning" style="font-size: 11px; color: #e74c3c; font-weight: 700; margin-bottom: 8px; display: none;">⚠️ Opomba: Spremembe so dovoljene samo uporabniku Robert.</p>
-                <div style="overflow-x: auto;">
-                    <table class="member-table">
-                        <thead>
-                            <tr>
-                                <th>Ime</th>
-                                <th style="text-align:center;">Štev.</th>
-                                <th style="text-align:center;" title="Ali je že dal za kavo v tem krogu">Že dal?</th>
-                                <th>Bilanca</th>
-                                <th>Akcije</th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminTableBody"></tbody>
-                    </table>
-                </div>
+                <div id="adminCardsContainer" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
 
-                <div id="addMemberSection" style="display:flex; gap:6px; margin-top:8px;">
+                <div id="addMemberSection" style="display:flex; gap:6px; margin-top:10px;">
                     <input type="text" id="newMemberName" placeholder="Ime novega sodelavca" style="flex:1; padding:6px; border:1px solid #ccc; border-radius:6px; font-size:11px;">
                     <button class="btn-3d btn-volunteer" style="padding: 6px 10px; font-size: 11px;" onclick="addMember()">➕ Dodaj</button>
                 </div>
@@ -563,7 +565,7 @@
             <div class="admin-section">
                 <h3>💾 Varnostne kopije in izvoz</h3>
                 <div class="config-field">
-                    <label>Izberi lokalno varnostno kopijo (samodejno shranjene):</label>
+                    <label>Izberi lokalno varnostno kopijo:</label>
                     <div style="display: flex; gap: 8px;">
                         <select id="localBackupSelect" style="flex: 1;"></select>
                         <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 6px 12px;" onclick="restoreSelectedLocalBackup()">Obnovi</button>
@@ -571,21 +573,13 @@
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="downloadJsonFile()">📥 Prenesi JSON</button>
-                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži iz računalnika</button>
+                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži</button>
                     <input type="file" id="fileUploadInput" accept=".json" style="display: none;" onchange="handleFileLoadedFromPC(event)">
                 </div>
             </div>
 
             <div class="admin-section">
-                <h3>⚙️ Konfiguracija oblaka (JSONBin & Webhook)</h3>
-                <div class="config-field">
-                    <label>JSONBin API Ključ (X-Master-Key):</label>
-                    <input type="text" id="jsonbinApiKey" placeholder="Vnesi API ključ" readonly style="background:#f1f5f9; color:#64748b;">
-                </div>
-                <div class="config-field">
-                    <label>JSONBin Bin ID:</label>
-                    <input type="text" id="jsonbinBinId" placeholder="Vnesi Bin ID" readonly style="background:#f1f5f9; color:#64748b;">
-                </div>
+                <h3>⚙️ Konfiguracija oblaka</h3>
                 <div class="config-field">
                     <label>Teams Webhook URL:</label>
                     <input type="text" id="webhookUrl">
@@ -636,9 +630,7 @@
 
     function updateActivityLogView() {
         const box = document.getElementById('activityLogBox');
-        if (box) {
-            box.innerText = activityLog.join('\n');
-        }
+        if (box) box.innerText = activityLog.join('\n');
     }
 
     function clearActivityLog() {
@@ -690,7 +682,7 @@
             logActivity("Izvedena razveljavitev (Undo) zadnje spremembe.");
             render();
             renderAdminData();
-            syncToCloud();
+            syncToCloud(null, true);
             alert("Sprememba je bila uspešno razveljavljena.");
         }
     }
@@ -762,7 +754,7 @@
             lastRecordedDate = todayStr;
             localStorage.setItem('lastRecordedDate', todayStr);
             render();
-            syncToCloud();
+            syncToCloud(null, true);
         }
     }
 
@@ -790,7 +782,7 @@
         
         logActivity(`Uporabnik ${loggedInUser} se je prijavil v aplikacijo.`);
         renderAdminData();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
     function promptChangeUser() {
@@ -819,13 +811,9 @@
 
     function applyGridColumnsStyle() {
         const gridElem = document.getElementById('cards');
-        if (gridElem) {
-            gridElem.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
-        }
+        if (gridElem) gridElem.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
         const selectElem = document.getElementById('gridColumnsSelect');
-        if (selectElem) {
-            selectElem.value = gridColumns;
-        }
+        if (selectElem) selectElem.value = gridColumns;
     }
 
     function updateGridColumnsSetting(val) {
@@ -833,21 +821,25 @@
         localStorage.setItem('gridColumns', gridColumns);
         applyGridColumnsStyle();
         logActivity(`Spremenjeno število stolpcev mrežnega prikaza na ${val}.`);
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
-    function syncToCloud(onSuccessCallback) {
+    // DODAN PARAMETER skipFetch ZA PREPREČEVANJE RACE CONDITION TEŽAV PRI HITRIH SHRANJEVanjih
+    function syncToCloud(onSuccessCallback, skipFetch = false) {
         document.getElementById('status').innerText = '⏳ Sinhroniziram...';
         
+        if (skipFetch) {
+            performPutRequest(onSuccessCallback);
+            return;
+        }
+
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
         })
         .then(res => res.json())
         .then(data => {
-            if (data && data.record) {
-                mergeData(data.record);
-            }
+            if (data && data.record) mergeData(data.record);
             performPutRequest(onSuccessCallback);
         })
         .catch(() => {
@@ -907,7 +899,6 @@
                     gridColumns = record.gridColumns;
                     localStorage.setItem('gridColumns', gridColumns);
                 }
-                
                 localStorage.setItem('confirmedDateStr', confirmedDateStr);
                 localStorage.setItem('confirmedPersonName', confirmedPersonName);
                 
@@ -919,7 +910,7 @@
                 alert("Podatki uspešno osveženi iz oblaka!");
             }
         })
-        .catch(err => {
+        .catch(() => {
             document.getElementById('status').innerText = '❌ Napaka';
             alert("Napaka pri branju iz oblaka. Preveri povezavo.");
         });
@@ -989,7 +980,7 @@
                     applyGridColumnsStyle();
                     render();
                     renderAdminData();
-                    syncToCloud();
+                    syncToCloud(null, true);
                     logActivity(`Obnovljena lokalna varnostna kopija (${backups[idx].time}).`);
                     alert("Podatki uspešno obnovljeni iz lokalne kopije!");
                     closeModal();
@@ -1042,7 +1033,7 @@
                     applyGridColumnsStyle();
                     render();
                     renderAdminData();
-                    syncToCloud();
+                    syncToCloud(null, true);
                     logActivity(`Naloženi podatki iz JSON datoteke (${file.name}).`);
                     alert("Uspešno naloženo in sinhronizirano!");
                     closeModal();
@@ -1106,9 +1097,7 @@
         populateBackupSelect();
         updateActivityLogView();
 
-        setInterval(() => {
-            saveLocalCache();
-        }, 2 * 60 * 60 * 1000);
+        setInterval(() => { saveLocalCache(); }, 2 * 60 * 60 * 1000);
 
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
@@ -1130,7 +1119,7 @@
                     renderAdminData();
                     saveLocalCache();
                 } else {
-                    syncToCloud();
+                    syncToCloud(null, true);
                 }
                 document.getElementById('status').innerText = '✅ V oblaku';
             }
@@ -1240,9 +1229,7 @@
             renderAdminData();
             
             syncToCloud((success) => {
-                if (!success) {
-                    alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela! Podatki so shranjeni samo lokalno na tej napravi.");
-                }
+                if (!success) alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela!");
             });
         }
     }
@@ -1263,34 +1250,30 @@
             
             render();
             renderAdminData();
-            syncToCloud();
+            syncToCloud(null, true);
         }
     }
 
     function toggleAbsent(name) {
         saveStateSnapshot();
         absent[name] = !absent[name];
-        if (absent[name]) {
-            tempAbsent[name] = false;
-        }
+        if (absent[name]) tempAbsent[name] = false;
 
         logActivity(`Spremenjen status odsotnosti (Dopust) za ${name}: ${absent[name]}`);
         render();
         renderAdminData();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
     function toggleTempAbsent(name) {
         saveStateSnapshot();
         tempAbsent[name] = !tempAbsent[name];
-        if (tempAbsent[name]) {
-            absent[name] = false;
-        }
+        if (tempAbsent[name]) absent[name] = false;
 
         logActivity(`Spremenjen status začasne odsotnosti za ${name}: ${tempAbsent[name]}`);
         render();
         renderAdminData();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
     function toggleVolunteerMenu() {
@@ -1325,9 +1308,7 @@
                     renderAdminData();
                     
                     syncToCloud((success) => {
-                        if (!success) {
-                            alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela! Podatki so shranjeni lokalno.");
-                        }
+                        if (!success) alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela!");
                     });
                 }
             };
@@ -1352,33 +1333,6 @@
         }
     }
 
-    function renderForcedNextButtons() {
-        const container = document.getElementById('forcedNextButtonsContainer');
-        if (!container) return;
-        container.innerHTML = '';
-        
-        const currentNext = getNextPerson();
-        team.forEach(name => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `btn-forced-choice ${forcedNextPerson === name ? 'active' : (!forcedNextPerson && currentNext === name ? 'active' : '')}`;
-            btn.innerText = name;
-            btn.onclick = () => {
-                if (loggedInUser !== "Filipšek") {
-                    alert("Samo uporabnik Robert lahko nastavlja vrstni red!");
-                    return;
-                }
-                saveStateSnapshot();
-                forcedNextPerson = name;
-                logActivity(`Ročno nastavljen naslednji v vrsti prek gumba: ${forcedNextPerson}`);
-                render();
-                renderAdminData();
-                syncToCloud();
-            };
-            container.appendChild(btn);
-        });
-    }
-
     function moveMember(index, direction) {
         if (loggedInUser !== "Filipšek") return;
         saveStateSnapshot();
@@ -1388,33 +1342,50 @@
         logActivity(`Premaknjen član ${team[newIndex]} v seznamu.`);
         renderAdminData();
         render();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
-    function setMemberCount(name, val) {
-        if (loggedInUser !== "Filipšek") return;
-        const num = parseInt(val);
-        if (isNaN(num)) return;
+    // POSODOBLJENA FUNKCIJA Z skipFetch: true ZA TAKOJŠNJE IN ZANESLJIVO SHRANJEVANJE POSAMEZNE VRSTICE
+    function saveAdminMemberRow(name, countInputId, paidCheckboxId, makeNextCheckboxId) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Robert lahko ureja nastavitve!");
+            return;
+        }
+
+        const countVal = parseInt(document.getElementById(countInputId).value);
+        const isPaid = document.getElementById(paidCheckboxId).checked;
+        const makeNext = document.getElementById(makeNextCheckboxId).checked;
+
+        if (isNaN(countVal) || countVal < 0) {
+            alert("Prosim vnesi veljavno število (0 ali več).");
+            return;
+        }
+
         saveStateSnapshot();
-        counts[name] = Math.max(0, num);
-        logActivity(`Ročno nastavljen števec za ${name} na ${counts[name]}`);
+
+        counts[name] = countVal;
+        currentRoundPaid[name] = isPaid;
+
+        if (makeNext) {
+            forcedNextPerson = name;
+        } else if (forcedNextPerson === name) {
+            forcedNextPerson = null;
+        }
+
+        logActivity(`Skrbniško shranjeno za ${name}: Štev.=${countVal}, Že dal=${isPaid}, Naslednji=${makeNext}`);
+        
         renderAdminData();
         render();
         saveLocalCache();
-        syncToCloud();
-    }
-
-    function toggleMemberPaidStatus(name) {
-        if (loggedInUser !== "Filipšek") {
-            alert("Samo uporabnik Robert lahko ureja status plačila!");
-            return;
-        }
-        saveStateSnapshot();
-        currentRoundPaid[name] = !currentRoundPaid[name];
-        logActivity(`Spremenjen status 'Že dal' za ${name}: ${currentRoundPaid[name]}`);
-        renderAdminData();
-        render();
-        syncToCloud();
+        
+        // Uporabimo skipFetch: true, da preprečimo prepisovanje lokalnega stanja s starimi podatki iz oblaka med hitrimi shranjevanji
+        syncToCloud((success) => {
+            if (success) {
+                alert(`Spremembe za ${name} uspešno shranjene!`);
+            } else {
+                alert(`Spremembe za ${name} shranjene lokalno (napaka oblaka).`);
+            }
+        }, true);
     }
 
     function renderAdminData() {
@@ -1422,40 +1393,66 @@
         document.getElementById('adminPermissionWarning').style.display = isFilipsek ? 'none' : 'block';
         document.getElementById('addMemberSection').style.display = isFilipsek ? 'flex' : 'none';
 
-        renderForcedNextButtons();
         populateBackupSelect();
         updateActivityLogView();
 
-        const tbody = document.getElementById('adminTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+        const container = document.getElementById('adminCardsContainer');
+        if (!container) return;
+        container.innerHTML = '';
         
         let total = 0;
         team.forEach(name => total += (counts[name] || 0));
         let avg = team.length > 0 ? Math.round(total / team.length) : 0;
+        const currentNext = getNextPerson();
 
         team.forEach((name, index) => {
             const cnt = Number(counts[name] || 0);
             const diff = cnt - avg;
             const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
-            const isNext = (name === getNextPerson());
+            const isNext = (name === currentNext);
+            const isForced = (forcedNextPerson === name);
             const isPaid = !!currentRoundPaid[name];
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${name}</b> ${isNext ? '<span style="color:#27ae60; font-size:9px; display:block;">(Naslednji)</span>' : ''}</td>
-                <td style="text-align:center;">
-                    ${isFilipsek ? `<input type="number" min="0" value="${cnt}" style="width:55px; font-size:11px; padding:3px; text-align:center; border:1px solid #ccc; border-radius:4px;" onchange="setMemberCount('${name}', this.value)">` : `<span>${cnt}x</span>`}
-                </td>
-                <td style="text-align:center;">
-                    <input type="checkbox" ${isPaid ? 'checked' : ''} ${isFilipsek ? '' : 'disabled'} onchange="toggleMemberPaidStatus('${name}')" style="cursor:pointer;" title="Označi, če je že dal za kavo">
-                </td>
-                <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
-                <td>
-                    ${isFilipsek ? `<button style="cursor:pointer;" onclick="moveMember('${index}', -1)">⬆️</button><button style="cursor:pointer;" onclick="moveMember('${index}', 1)">⬇️</button><button style="color:#e74c3c; cursor:pointer;" onclick="removeMember('${name}')">🗑️</button>` : ''}
-                </td>
+            const countInputId = `admin_cnt_${index}`;
+            const paidCheckboxId = `admin_paid_${index}`;
+            const makeNextCheckboxId = `admin_next_${index}`;
+
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'member-card-admin';
+            cardDiv.innerHTML = `
+                <div class="member-card-header">
+                    <span>${name} ${isNext ? '<span style="color:#27ae60; font-size:10px;">(Trenutno naslednji)</span>' : ''}</span>
+                    <span style="font-size:10px; color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">Bilanca: <b>${diffStr}</b></span>
+                </div>
+                <div class="member-controls-row">
+                    <div class="control-group">
+                        <label>Število rund:</label>
+                        <input type="number" id="${countInputId}" min="0" value="${cnt}">
+                    </div>
+                    <div class="control-group" style="justify-content:center;">
+                        <label>&nbsp;</label>
+                        <label class="control-group-checkbox">
+                            <input type="checkbox" id="${paidCheckboxId}" ${isPaid ? 'checked' : ''}> Že dal danes?
+                        </label>
+                    </div>
+                    <div class="control-group" style="justify-content:center;">
+                        <label>&nbsp;</label>
+                        <label class="control-group-checkbox">
+                            <input type="checkbox" id="${makeNextCheckboxId}" ${isForced ? 'checked' : ''}> Nastavi za naslednjega
+                        </label>
+                    </div>
+                    <div style="margin-top:auto;">
+                        ${isFilipsek ? `<button class="btn-3d btn-confirm" style="padding:6px 10px; font-size:10px;" onclick="saveAdminMemberRow('${name}', '${countInputId}', '${paidCheckboxId}', '${makeNextCheckboxId}')">💾 Shrani</button>` : ''}
+                    </div>
+                </div>
+                ${isFilipsek ? `
+                <div style="display:flex; gap:6px; margin-top:2px; border-top:1px solid #e2e8f0; padding-top:4px;">
+                    <button style="font-size:10px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px;" onclick="moveMember('${index}', -1)">⬆️ Premakni gor</button>
+                    <button style="font-size:10px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px;" onclick="moveMember('${index}', 1)">⬇️ Premakni dol</button>
+                    <button style="font-size:10px; cursor:pointer; background:#fff; color:#e74c3c; border:1px solid #fadbd8; border-radius:4px; padding:2px 6px; margin-left:auto;" onclick="removeMember('${name}')">🗑️ Odstrani</button>
+                </div>` : ''}
             `;
-            tbody.appendChild(tr);
+            container.appendChild(cardDiv);
         });
     }
 
@@ -1474,7 +1471,7 @@
         logActivity(`Dodan nov član ekipe: ${name}`);
         render();
         renderAdminData();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
     function removeMember(name) {
@@ -1489,7 +1486,7 @@
             logActivity(`Odstranjen član ekipe: ${name}`);
             render();
             renderAdminData();
-            syncToCloud();
+            syncToCloud(null, true);
         }
     }
 
@@ -1511,8 +1508,6 @@
             document.getElementById('authView').style.display = 'none';
             document.getElementById('settingsView').style.display = 'block';
             document.getElementById('webhookUrl').value = WEBHOOK;
-            document.getElementById('jsonbinApiKey').value = JSONBIN_API_KEY;
-            document.getElementById('jsonbinBinId').value = JSONBIN_BIN_ID;
             applyGridColumnsStyle();
             renderAdminData();
             logActivity("Uspešno odklenjene skrbniške nastavitve.");
@@ -1530,7 +1525,7 @@
         logActivity("Shranjene konfiguracijske nastavitve.");
         alert("Shranjeno in sinhronizirano!");
         closeModal();
-        syncToCloud();
+        syncToCloud(null, true);
     }
 
     initApp();

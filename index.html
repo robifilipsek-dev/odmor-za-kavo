@@ -5,26 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>☕ Odmor za kavo</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#3d2b1f">
+    <meta name="theme-color" content="#0f172a">
     <style>
         :root {
-            --bg-color: #f4f6f8;
-            --card-bg: #ffffff;
-            --primary: #3d2b1f;
-            --primary-light: #5c4033;
-            --accent: #e74c3c;
-            --text: #2c3e50;
-            --border: #e2e8f0;
-            --success: #27ae60;
-            --warning: #f39c12;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --primary: #f8fafc;
+            --text: #94a3b8;
+            --text-bright: #f1f5f9;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #eef2f5 0%, #e0e6ed 100%);
+            background: var(--bg-gradient);
             color: var(--text);
             margin: 0;
-            padding: 24px 12px;
+            padding: 20px 10px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -32,14 +35,14 @@
             box-sizing: border-box;
         }
 
-        .card {
+        .container {
             background: var(--card-bg);
-            border-radius: 20px;
-            padding: 24px 20px;
-            max-width: 620px;
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 580px;
             width: 100%;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.07), 0 2px 5px rgba(0, 0, 0, 0.04);
-            border: 1px solid #ffffff;
+            box-shadow: var(--shadow);
             position: relative;
         }
 
@@ -47,751 +50,690 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 15px;
         }
 
         h1 {
-            color: var(--primary);
+            color: var(--text-bright);
             font-size: 20px;
             margin: 0;
             font-weight: 800;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            letter-spacing: -0.5px;
         }
-        
-        .header-right {
+
+        .header-info {
             display: flex;
-            align-items: center;
             gap: 6px;
+            align-items: center;
         }
 
-        .date-badge, .clock-badge, .status-badge {
+        .badge {
             font-size: 11px;
-            padding: 5px 8px;
+            padding: 6px 12px;
             border-radius: 20px;
-            background: #eef2f6;
-            color: var(--primary);
-            font-weight: 800;
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            color: var(--text-bright);
+            font-weight: 600;
         }
 
-        .selected-box {
-            background: linear-gradient(145deg, #ebf8ff, #e1effe);
-            border: 1px solid #3498db;
-            border-radius: 16px;
-            padding: 16px;
+        .status-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 18px;
+            padding: 20px;
             text-align: center;
-            margin-bottom: 18px;
-            box-shadow: 0 4px 12px rgba(52,152,219,0.12);
+            margin-bottom: 20px;
         }
 
-        .selected-box span {
-            font-size: 12px;
-            color: #1d6fa5;
+        .status-box span {
+            font-size: 11px;
+            color: var(--accent);
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 1.5px;
             font-weight: 800;
             display: block;
         }
 
-        .selected-box strong {
+        .status-box strong {
             font-size: 26px;
-            color: var(--primary);
+            color: var(--text-bright);
             display: block;
-            margin: 4px 0 8px 0;
+            margin: 8px 0 5px 0;
             font-weight: 900;
         }
 
-        .btn-3d {
-            border: none;
-            border-radius: 12px;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.1s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            user-select: none;
-            box-sizing: border-box;
+        .next-preview {
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 15px;
         }
 
-        .btn-3d:active {
-            transform: translateY(3px) !important;
-        }
-
-        .btn-confirm {
-            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
-            color: white;
+        .next-preview strong {
             font-size: 13px;
-            padding: 12px;
-            box-shadow: 0 4px 0 #1e8449, 0 6px 12px rgba(39, 174, 96, 0.2);
+            color: var(--info);
+            display: inline;
+            margin: 0;
+            font-weight: 700;
         }
 
-        .btn-skip {
-            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-            color: #e74c3c;
-            border: 1px solid #fadbd8;
-            font-size: 13px;
-            padding: 12px;
-            box-shadow: 0 3px 0 #e6b0aa;
-        }
-
-        .next-buttons-group, .btn-action-bar {
+        .action-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-bottom: 10px;
         }
 
-        .btn-volunteer {
-            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            font-size: 12px;
-            padding: 10px;
-            box-shadow: 0 3px 0 #1c5980;
+        .btn {
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 12px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            color: #0f172a;
+        }
+        .btn-confirm:hover { background: #34d399; }
+
+        .btn-cant {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-cant:hover { background: #f87171; }
+
+        .btn-sponsor {
+            background: var(--info);
+            color: white;
+        }
+        .btn-sponsor:hover { background: #60a5fa; }
 
         .btn-teams {
-            background: linear-gradient(180deg, #5b63d3 0%, #464eb8 100%);
+            background: #4f46e5;
             color: white;
-            font-size: 12px;
-            padding: 10px;
-            box-shadow: 0 3px 0 #2f3480;
+            grid-column: span 2;
         }
+        .btn-teams:hover { background: #6366f1; }
 
-        .volunteer-selector {
-            display: none;
-            background: #ffffff;
-            border: 1px solid #27ae60;
-            border-radius: 12px;
-            padding: 10px;
-            margin-top: 10px;
-            box-shadow: 0 6px 15px rgba(39, 174, 96, 0.1);
-        }
-        .volunteer-selector p {
-            margin: 0 0 8px 0;
-            font-size: 11px;
-            font-weight: 800;
-            color: #27ae60;
-            text-align: center;
-            text-transform: uppercase;
-        }
-        .volunteer-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-        }
-        .btn-volunteer-name {
-            background: #eafaf1;
-            border: 1px solid #a3e4d7;
-            color: #1e8449;
-            padding: 8px 4px;
-            border-radius: 8px;
-            font-weight: 800;
-            font-size: 11px;
-            cursor: pointer;
-            text-align: center;
-        }
-
-        .grid {
+        .members-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
-        
-        .info-card {
-            background: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
-            border: 1px solid #e1dcd5;
-            border-radius: 12px;
-            padding: 10px;
-            height: 85px;
-            text-align: left;
+
+        .member-card {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            min-height: 60px;
             box-sizing: border-box;
         }
 
-        .info-card.absent {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-            opacity: 0.7;
+        .member-card.is-next {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: var(--accent);
         }
 
-        .info-card.temp-absent {
-            background: #fffbeb;
-            border-color: #fde68a;
-            opacity: 0.85;
+        .member-card.is-paid {
+            background: rgba(59, 130, 246, 0.05);
+            border-color: var(--info);
         }
 
-        .info-card.is-turn {
-            border-color: #27ae60;
-            background: linear-gradient(180deg, #f4faf6 0%, #eafaf1 100%);
-            box-shadow: 0 3px 8px rgba(39, 174, 96, 0.15);
-        }
-        
-        .card-name {
-            font-weight: 800;
-            font-size: 13px;
-            color: var(--primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-        }
-        .info-card.absent .card-name {
-            color: #64748b;
-            text-decoration: line-through;
-        }
-        .info-card.temp-absent .card-name {
-            color: #b45309;
+        .member-card.is-absent {
+            opacity: 0.4;
         }
 
-        .badge {
-            padding: 1px 5px;
-            border-radius: 4px;
-            font-size: 8px;
-            font-weight: 800;
-            color: white;
-            display: inline-block;
-        }
-        .badge-turn { background: #27ae60; }
-        .badge-absent { background: #94a3b8; }
-        .badge-temp { background: #d97706; }
-
-        .card-status-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-        }
-
-        .card-actions-row {
-            display: flex;
-            gap: 4px;
-            margin-top: auto;
-        }
-
-        .toggle-absent-btn {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            padding: 4px 2px;
-            font-size: 8.5px;
+        .member-name {
             font-weight: 700;
-            cursor: pointer;
-            flex: 1;
-            text-align: center;
-        }
-        
-        .footer-tools {
+            font-size: 13px;
+            color: var(--text-bright);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 16px;
-            border-top: 1px dashed var(--border);
-            padding-top: 12px;
         }
-        
-        .user-indicator-footer {
+
+        .member-meta {
             font-size: 11px;
-            color: #555;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            color: var(--text);
+            margin-top: 4px;
         }
-        .user-indicator-footer b { color: var(--primary); }
-        .change-user-link {
-            color: #3498db;
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--card-border);
+            padding-top: 15px;
+            font-size: 12px;
+        }
+
+        .user-info span {
+            font-weight: 700;
+            color: var(--text-bright);
+        }
+
+        .link-btn {
+            color: var(--info);
             cursor: pointer;
             text-decoration: underline;
-            font-size: 10px;
+            margin-left: 5px;
         }
 
         .icon-btn {
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
+            background: #0f172a;
+            border: 1px solid var(--card-border);
             border-radius: 10px;
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 16px;
+            color: var(--text-bright);
+            transition: background 0.2s;
         }
+        .icon-btn:hover { background: var(--card-border); }
 
-        .login-overlay, .modal-overlay {
+        .overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
             justify-content: center;
             align-items: center;
-            z-index: 2000;
+            z-index: 1000;
         }
-        .login-card, .modal-content {
-            background: white;
+
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             padding: 24px;
             border-radius: 20px;
-            max-width: 520px;
+            max-width: 680px;
             width: 95%;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            text-align: center;
-        }
-        .login-card select {
-            width: 100%;
-            padding: 10px;
-            border-radius: 10px;
-            border: 1px solid #ccc;
-            font-size: 14px;
-            margin: 15px 0;
-            font-weight: 700;
-            color: var(--primary);
-            box-sizing: border-box;
-        }
-
-        .modal-content {
-            text-align: left;
-            max-height: 85vh;
+            box-shadow: var(--shadow);
+            max-height: 90vh;
             overflow-y: auto;
+            color: var(--text-bright);
         }
-        .modal-header {
-            font-weight: 800;
-            font-size: 16px;
-            margin-bottom: 14px;
-            color: var(--primary);
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 8px;
-        }
-        .close-btn { cursor: pointer; color: #aaa; font-size: 18px; }
-        .auth-box { text-align: center; padding: 10px 0; }
-        .auth-box input { width: 70%; padding: 8px; text-align: center; font-size: 13px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; }
 
-        .admin-section { border-top: 1px dashed var(--border); margin-top: 14px; padding-top: 12px; }
-        .admin-section h3 { font-size: 13px; margin: 0 0 8px 0; color: var(--primary); font-weight: 800; }
+        .modal h2 { margin-top: 0; color: var(--text-bright); font-size: 18px; }
         
-        .member-card-admin {
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
+        select, input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
             border-radius: 10px;
-            padding: 10px;
+            border: 1px solid var(--card-border);
+            background: #0f172a;
+            color: var(--text-bright);
+            font-size: 13px;
+            margin: 8px 0 15px 0;
+            box-sizing: border-box;
+            font-weight: 600;
+        }
+
+        .admin-member-row {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 10px 12px;
             margin-bottom: 8px;
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .member-card-header {
-            display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
-            font-weight: 800;
-            font-size: 12px;
-            color: var(--primary);
+            gap: 10px;
         }
-        .member-controls-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto;
-            gap: 6px;
-            align-items: center;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .control-group label {
-            font-size: 9px;
+
+        .admin-member-name {
             font-weight: 700;
-            color: #64748b;
+            font-size: 13px;
+            color: var(--text-bright);
+            flex: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .control-group input[type="number"] {
-            padding: 5px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 11px;
-            text-align: center;
-            background: #fff;
-        }
-        .control-group-checkbox {
+
+        .admin-controls-inline {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 10px;
+            gap: 8px;
+            flex: 2.5;
+            justify-content: flex-end;
+        }
+
+        .mini-btn {
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
-            margin-top: auto;
-            margin-bottom: auto;
+            border: none;
+            transition: opacity 0.2s;
         }
 
-        .config-field {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-bottom: 10px;
-        }
-        .config-field label { font-size: 11px; font-weight: 800; color: #555; }
-        .config-field input, .config-field select {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 11px;
-            background: #fafafa;
-            box-sizing: border-box;
-            width: 100%;
-        }
-
-        .activity-log-box {
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 8px;
-            font-family: monospace;
-            font-size: 10px;
-            height: 100px;
+        .activity-log {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 10px;
+            max-height: 120px;
             overflow-y: auto;
-            white-space: pre-wrap;
-            margin-bottom: 8px;
-            color: #334155;
+            font-size: 11px;
+            color: var(--text);
+            margin-top: 15px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
 
-<div class="login-overlay" id="loginOverlay">
-    <div class="login-card">
+<!-- PRIJAVNI MODAL (VEDNO OB ZAGONU) -->
+<div class="overlay" id="loginOverlay" style="display: flex;">
+    <div class="modal" style="text-align: center; max-width: 400px;">
         <h2>☕ Kdo se prijavlja?</h2>
-        <p style="font-size: 12px; color: #666;">Izberi svoje ime za nadaljevanje:</p>
-        <select id="loginUserSelect"></select>
-        <button class="btn-3d btn-confirm" style="width:100%; padding: 10px; font-size: 13px;" onclick="handleLoginSelection()">Prijava</button>
+        <p style="font-size: 13px; color: var(--text);">Izberi svoje ime za sodelovanje v aplikaciji:</p>
+        <select id="loginSelect"></select>
+        <button class="btn btn-confirm" style="width: 100%; margin-top: 10px;" onclick="handleLogin()">Prijava v aplikacijo</button>
     </div>
 </div>
 
-<div class="card">
+<!-- GLAVNA APLIKACIJA -->
+<div class="container">
     <div class="header">
         <h1>☕ Odmor za kavo</h1>
-        <div class="header-right">
-            <button id="undoBtn" class="icon-btn" style="width:32px; height:32px; font-size:13px; opacity: 0.5;" onclick="triggerUndo()" title="Razveljavi zadnjo spremembo" disabled>↩️</button>
-            <span id="liveDate" class="date-badge">-</span>
-            <span id="liveClock" class="clock-badge">00:00:00</span>
-            <span id="status" class="status-badge">Nalagam...</span>
+        <div class="header-info">
+            <span id="dateBadge" class="badge">-</span>
+            <span id="syncStatus" class="badge">Nalagam...</span>
         </div>
     </div>
 
-    <div class="selected-box">
-        <span id="mainTitleLabel">Danes kavo časti:</span>
-        <strong id="selectedPerson">-</strong>
-
-        <div class="next-buttons-group">
-            <button class="btn-3d btn-confirm" onclick="confirmPaymentForSelected()">✅ Potrjujem</button>
-            <button class="btn-3d btn-skip" onclick="skipNextPerson()">⏭️ Danes ne morem</button>
-        </div>
-
-        <div class="btn-action-bar">
-            <button class="btn-3d btn-volunteer" onclick="toggleVolunteerMenu()">🙋‍♂️ Časti nekdo drug?</button>
-            <button id="teamsButton" class="btn-3d btn-teams" onclick="handleTeamsButtonClick()">📢 Opomnik v Teams</button>
-        </div>
-        
-        <div id="volunteerSelector" class="volunteer-selector">
-            <p>Izberi sodelavca, ki bo častil izven vrstnega reda:</p>
-            <div id="volunteerGrid" class="volunteer-grid"></div>
+    <div class="status-box">
+        <span id="statusSubtitle">Danes je na vrsti za kavo:</span>
+        <strong id="currentPersonName">-</strong>
+        <div class="next-preview">Naslednji na vrsti: <strong id="nextPersonName">-</strong></div>
+        <div class="action-buttons">
+            <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
+            <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
+            <button class="btn btn-sponsor" onclick="sponsorCoffee()">⭐ Jaz častim danes</button>
+            <button class="btn btn-teams" onclick="sendTeamsNotification()">📢 Pošlji opomnik v Teams</button>
         </div>
     </div>
 
-    <div class="grid" id="cards"></div>
+    <div class="members-grid" id="membersGrid"></div>
 
-    <div class="footer-tools">
-        <div class="user-indicator-footer">
-            <span>Prijavljen: <b id="currentLoggedInUser">-</b></span>
-            <span class="change-user-link" onclick="promptChangeUser()">(Zamenjaj)</span>
+    <div class="footer">
+        <div class="user-info">
+            Prijavljen: <span id="loggedInUserDisplay">-</span>
+            <span class="link-btn" onclick="openLoginModal()">(Zamenjaj)</span>
         </div>
-        <div style="display:flex; gap: 6px;">
-            <button class="icon-btn" onclick="fetchDataFromCloud()" title="Osveži iz oblaka">🔄</button>
-            <button class="icon-btn" onclick="openModal()" title="Skrbniške nastavitve">⚙️</button>
+        <div style="display: flex; gap: 6px;">
+            <button class="icon-btn" onclick="syncWithCloud()" title="Osveži podatke">🔄</button>
+            <button class="icon-btn" onclick="openAdminModal()" title="Nastavitve">⚙️</button>
         </div>
     </div>
 </div>
 
-<div class="modal-overlay" id="modalOverlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span>⚙️ Nastavitve</span>
-            <span class="close-btn" onclick="closeModal()">✕</span>
+<!-- SKRBNIŠKI MODAL (NASTAVITVE) -->
+<div class="overlay" id="adminModal">
+    <div class="modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
+            <h2 style="margin:0;">⚙️ Skrbniške nastavitve</h2>
+            <span style="cursor: pointer; font-size: 18px; font-weight: bold; color:var(--text);" onclick="closeAdminModal()">✕</span>
         </div>
 
-        <div id="authView" class="auth-box">
-            <p style="font-size: 12px; color: #555;">Za dostop vnesite skrbniško geslo:</p>
-            <input type="password" id="passInput" placeholder="Vnesi geslo" onkeydown="handlePasswordKey(event)">
-            <br>
-            <button class="btn-3d btn-volunteer" style="padding: 6px 16px; font-size: 12px; margin-top: 4px;" onclick="checkPassword()">Odkleni</button>
-            <p id="authError" style="color: red; font-size: 11px; display: none; margin-top: 6px;">Napačno geslo!</p>
+        <div id="authSection">
+            <p style="font-size: 13px; color: var(--text);">Vnesi skrbniško geslo za urejanje:</p>
+            <input type="password" id="adminPasswordInput" placeholder="Vnesi geslo" onkeydown="if(event.key==='Enter') checkAdminPassword()">
+            <button class="btn btn-confirm" style="width: 100%;" onclick="checkAdminPassword()">Odkleni nastavitve</button>
+            <p id="authError" style="color: var(--danger); font-size: 12px; display: none; margin-top: 8px;">Napačno geslo!</p>
         </div>
 
-        <div id="settingsView" style="display: none;">
-            <div class="admin-section" style="border-top: none; padding-top: 0;">
-                <h3>📜 Dnevnik dejavnosti (Activity Log)</h3>
-                <div id="activityLogBox" class="activity-log-box"></div>
-                <button class="btn-3d btn-skip" style="width:100%; padding:6px; font-size:11px;" onclick="clearActivityLog()">Počisti dnevnik</button>
+        <div id="settingsContent" style="display: none;">
+            <p id="permissionWarning" style="color: var(--warning); font-size: 12px; font-weight: bold; display: none;">⚠️ Urejanje članov in vrstnega reda je dovoljeno samo uporabniku Robert.</p>
+            
+            <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev naslednjega</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                <select id="setNextSelect" style="margin:0; flex:1;"></select>
+                <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="applyManualNext()">Nastavi</button>
             </div>
 
-            <div class="admin-section">
-                <h3>🎨 Postavitev in vizualika</h3>
-                <div class="config-field">
-                    <label>Število stolpcev za kartice sodelavcev:</label>
-                    <select id="gridColumnsSelect" onchange="updateGridColumnsSetting(this.value)">
-                        <option value="1">1 stolpec</option>
-                        <option value="2" selected>2 stolpca</option>
-                        <option value="3">3 stolpci</option>
-                    </select>
-                </div>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov (vse v eni vrstici)</h3>
+            <div id="adminMembersList" style="max-height: 220px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
+
+            <div style="display: flex; gap: 6px; margin-bottom: 15px;" id="addMemberBox">
+                <input type="text" id="newMemberNameInput" placeholder="Ime novega sodelavca" style="margin:0; flex:1;">
+                <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="addMember()">➕ Dodaj</button>
             </div>
 
-            <div class="admin-section">
-                <h3>📊 Upravljanje članov in podatkov</h3>
-                <p id="adminPermissionWarning" style="font-size: 11px; color: #e74c3c; font-weight: 700; margin-bottom: 8px; display: none;">⚠️ Opomba: Spremembe so dovoljene samo uporabniku Robert.</p>
-                <div id="adminCardsContainer" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🌐 Teams Webhook URL</h3>
+            <input type="text" id="webhookInput" placeholder="Vnesi Webhook URL">
 
-                <div id="addMemberSection" style="display:flex; gap:6px; margin-top:10px;">
-                    <input type="text" id="newMemberName" placeholder="Ime novega sodelavca" style="flex:1; padding:6px; border:1px solid #ccc; border-radius:6px; font-size:11px;">
-                    <button class="btn-3d btn-volunteer" style="padding: 6px 10px; font-size: 11px;" onclick="addMember()">➕ Dodaj</button>
-                </div>
-            </div>
+            <!-- Skupni gumb za shranjevanje vseh sprememb -->
+            <button class="btn btn-confirm" style="width: 100%; margin-top: 15px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
 
-            <div class="admin-section">
-                <h3>💾 Varnostne kopije in izvoz</h3>
-                <div class="config-field">
-                    <label>Izberi lokalno varnostno kopijo:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <select id="localBackupSelect" style="flex: 1;"></select>
-                        <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 6px 12px;" onclick="restoreSelectedLocalBackup()">Obnovi</button>
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="downloadJsonFile()">📥 Prenesi JSON</button>
-                    <button class="btn-3d btn-file-action" style="font-size: 11px; padding: 8px; background:#f8fafc; border:1px solid #cbd5e1;" onclick="document.getElementById('fileUploadInput').click()">📂 Naloži</button>
-                    <input type="file" id="fileUploadInput" accept=".json" style="display: none;" onchange="handleFileLoadedFromPC(event)">
-                </div>
-            </div>
-
-            <div class="admin-section">
-                <h3>⚙️ Konfiguracija oblaka</h3>
-                <div class="config-field">
-                    <label>Teams Webhook URL:</label>
-                    <input type="text" id="webhookUrl">
-                </div>
-            </div>
-
-            <button class="btn-3d btn-confirm" style="width:100%; margin-top:10px; font-size: 12px; padding: 10px;" onclick="saveConfig()">💾 Shrani nastavitve</button>
+            <h3 style="font-size: 12px; color: var(--text); margin-top: 20px; text-transform: uppercase;">📋 Okno aktivnosti in sprememb</h3>
+            <div class="activity-log" id="activityLogBox">Naloženo. Čakam na akcije...</div>
         </div>
     </div>
 </div>
 
 <script>
-    let defaultTeam = ["Filipšek", "Fidler", "Pirnat", "Oprešnik", "Govedić", "Fendre", "Šetina", "Vrtačnik", "Gračner", "Rihter"];
-    let team = [...defaultTeam];
-
-    let WEBHOOK = localStorage.getItem('WEBHOOK') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
-    
+    const DEFAULT_TEAM = ["Filipšek", "Fidler", "Pirnat", "Oprešnik", "Govedić", "Fendre", "Šetina", "Vrtačnik", "Gračner", "Rihter"];
     const JSONBIN_BIN_ID = "6a635852da38895dfe89ba53";
     const JSONBIN_API_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
 
+    let team = [...DEFAULT_TEAM];
     let counts = {};
     let absent = {};
-    let tempAbsent = {}; 
     let currentRoundPaid = {};
-    let gridColumns = localStorage.getItem('gridColumns') || "2";
-
-    let lastRecordedDate = localStorage.getItem('lastRecordedDate') || "";
-    let loggedInUser = localStorage.getItem('loggedInUser') || "";
-
-    let temporaryVolunteerToday = null; 
-    let forcedNextPerson = null;
-    
-    let confirmedDateStr = localStorage.getItem('confirmedDateStr') || "";
-    let confirmedPersonName = localStorage.getItem('confirmedPersonName') || "";
+    let currentIndex = 0;
+    let lastRotationDate = "";
+    let webhookUrl = localStorage.getItem('WEBHOOK_URL') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    let loggedInUser = "";
     let appTimestamp = Date.now();
-
-    let previousStateSnapshot = null;
-    let activityLog = JSON.parse(localStorage.getItem('coffee_activity_log') || '[]');
+    let activityHistory = [];
 
     function logActivity(text) {
         const timeStr = new Date().toLocaleTimeString('sl-SI');
-        const entry = `[${timeStr}] ${text}`;
-        activityLog.unshift(entry);
-        if (activityLog.length > 50) activityLog.pop();
-        localStorage.setItem('coffee_activity_log', JSON.stringify(activityLog));
-        updateActivityLogView();
-    }
-
-    function updateActivityLogView() {
+        activityHistory.unshift(`[${timeStr}] ${text}`);
+        if(activityHistory.length > 30) activityHistory.pop();
         const box = document.getElementById('activityLogBox');
-        if (box) box.innerText = activityLog.join('\n');
-    }
-
-    function clearActivityLog() {
-        activityLog = [];
-        localStorage.removeItem('coffee_activity_log');
-        updateActivityLogView();
-        logActivity("Dnevnik dejavnosti očiščen.");
-    }
-
-    function saveStateSnapshot() {
-        previousStateSnapshot = {
-            team: [...team],
-            counts: JSON.parse(JSON.stringify(counts)),
-            absent: JSON.parse(JSON.stringify(absent)),
-            tempAbsent: JSON.parse(JSON.stringify(tempAbsent)),
-            currentRoundPaid: JSON.parse(JSON.stringify(currentRoundPaid)),
-            forcedNextPerson: forcedNextPerson,
-            confirmedDateStr: confirmedDateStr,
-            confirmedPersonName: confirmedPersonName,
-            temporaryVolunteerToday: temporaryVolunteerToday
-        };
-        const undoBtn = document.getElementById('undoBtn');
-        if (undoBtn) {
-            undoBtn.disabled = false;
-            undoBtn.style.opacity = '1';
+        if(box) {
+            box.innerHTML = activityHistory.join('<br>');
         }
     }
 
-    function triggerUndo() {
-        if (!previousStateSnapshot) return;
-        if (confirm("Ali želiš razveljaviti zadnjo spremembo?")) {
-            team = JSON.parse(JSON.stringify(previousStateSnapshot.team));
-            counts = JSON.parse(JSON.stringify(previousStateSnapshot.counts));
-            absent = JSON.parse(JSON.stringify(previousStateSnapshot.absent));
-            tempAbsent = JSON.parse(JSON.stringify(previousStateSnapshot.tempAbsent));
-            currentRoundPaid = JSON.parse(JSON.stringify(previousStateSnapshot.currentRoundPaid));
-            forcedNextPerson = previousStateSnapshot.forcedNextPerson;
-            confirmedDateStr = previousStateSnapshot.confirmedDateStr;
-            confirmedPersonName = previousStateSnapshot.confirmedPersonName;
-            temporaryVolunteerToday = previousStateSnapshot.temporaryVolunteerToday;
-
-            previousStateSnapshot = null;
-            const undoBtn = document.getElementById('undoBtn');
-            if (undoBtn) {
-                undoBtn.disabled = true;
-                undoBtn.style.opacity = '0.5';
-            }
-
-            logActivity("Izvedena razveljavitev (Undo) zadnje spremembe.");
-            render();
-            renderAdminData();
-            syncToCloud(null, true);
-            alert("Sprememba je bila uspešno razveljavljena.");
-        }
-    }
-
-    function mergeData(incoming) {
-        if (!incoming) return;
+    function init() {
+        loadLocalStorage();
+        setupLoginDropdown();
+        checkDateRollover();
         
-        if (incoming.team && Array.isArray(incoming.team)) {
-            let mergedTeam = [...defaultTeam];
-            incoming.team.forEach(name => {
-                if (!mergedTeam.includes(name)) mergedTeam.push(name);
-            });
-            team = mergedTeam;
-        }
+        document.getElementById('loginOverlay').style.display = 'flex';
+        
+        renderUI();
+        syncWithCloud();
+    }
+
+    function loadLocalStorage() {
+        try {
+            const saved = localStorage.getItem('COFFEE_APP_STATE_NEW');
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.team) team = data.team;
+                if (data.counts) counts = data.counts;
+                if (data.absent) absent = data.absent;
+                if (data.currentRoundPaid) currentRoundPaid = data.currentRoundPaid;
+                if (typeof data.currentIndex === 'number') currentIndex = data.currentIndex;
+                if (data.lastRotationDate) lastRotationDate = data.lastRotationDate;
+                if (data.timestamp) appTimestamp = data.timestamp;
+            }
+        } catch(e) {}
 
         team.forEach(name => {
-            const incomingVal = Number(incoming.counts && incoming.counts[name] || 0);
-            const currentVal = Number(counts[name] || 0);
-            if (incomingVal === 0 && currentVal > 0) {
-                counts[name] = currentVal;
-            } else {
-                counts[name] = Math.max(currentVal, incomingVal);
-            }
-
-            if (incoming.currentRoundPaid && incoming.currentRoundPaid[name] !== undefined) {
-                currentRoundPaid[name] = incoming.currentRoundPaid[name];
-            }
+            if (!(name in counts)) counts[name] = 0;
+            if (!(name in absent)) absent[name] = false;
+            if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
         });
-
-        if (incoming.absent) {
-            Object.keys(incoming.absent).forEach(k => {
-                if (incoming.absent[k]) absent[k] = true;
-            });
-        }
-        if (incoming.tempAbsent) {
-            Object.keys(incoming.tempAbsent).forEach(k => {
-                if (incoming.tempAbsent[k]) tempAbsent[k] = true;
-            });
-        }
-        if (incoming.confirmedDateStr && incoming.confirmedDateStr === new Date().toDateString()) {
-            if (incoming.confirmedPersonName) {
-                confirmedDateStr = incoming.confirmedDateStr;
-                confirmedPersonName = incoming.confirmedPersonName;
-            }
-        }
-        if (incoming.forcedNextPerson !== undefined) {
-            forcedNextPerson = incoming.forcedNextPerson;
-        }
     }
 
-    function updateDateTime() {
-        const now = new Date();
-        document.getElementById('liveClock').innerText = now.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-        document.getElementById('liveDate').innerText = now.toLocaleDateString('sl-SI', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
-        checkMidnightRollover();
+    function saveLocalStorage() {
+        const state = { team, counts, absent, currentRoundPaid, currentIndex, lastRotationDate, timestamp: appTimestamp };
+        localStorage.setItem('COFFEE_APP_STATE_NEW', JSON.stringify(state));
     }
 
-    setInterval(updateDateTime, 1000);
-    updateDateTime();
-
-    function checkMidnightRollover() {
-        const todayStr = new Date().toDateString();
-        if (lastRecordedDate && lastRecordedDate !== todayStr) {
-            Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
-            confirmedDateStr = "";
-            confirmedPersonName = "";
-            localStorage.setItem('confirmedDateStr', "");
-            localStorage.setItem('confirmedPersonName', "");
-            lastRecordedDate = todayStr;
-            localStorage.setItem('lastRecordedDate', todayStr);
-            render();
-            syncToCloud(null, true);
-        }
-    }
-
-    function checkLogin() {
-        const select = document.getElementById('loginUserSelect');
+    function setupLoginDropdown() {
+        const select = document.getElementById('loginSelect');
         select.innerHTML = '';
         team.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name;
             opt.innerText = name;
-            if (name === loggedInUser) opt.selected = true;
             select.appendChild(opt);
         });
-        document.getElementById('loginOverlay').style.display = 'flex';
-        logActivity("Odprto okno za prijavo uporabnika.");
     }
 
-    function handleLoginSelection() {
-        const select = document.getElementById('loginUserSelect');
+    function handleLogin() {
+        const select = document.getElementById('loginSelect');
         loggedInUser = select.value;
         if (!loggedInUser) return;
-        localStorage.setItem('loggedInUser', loggedInUser);
-        document.getElementById('currentLoggedInUser').innerText = loggedInUser;
+        document.getElementById('loggedInUserDisplay').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
+        logActivity(`Prijavljen uporabnik: ${loggedInUser}`);
+        renderUI();
+    }
+
+    function openLoginModal() {
+        setupLoginDropdown();
+        document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    function checkDateRollover() {
+        const todayStr = new Date().toDateString();
+        document.getElementById('dateBadge').innerText = new Date().toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
+
+        if (lastRotationDate && lastRotationDate !== todayStr) {
+            moveToNextAvailablePerson();
+            Object.keys(currentRoundPaid).forEach(k => currentRoundPaid[k] = false);
+            logActivity("Nov dan: Avtomatska rotacija na naslednjo osebo.");
+        }
+        lastRotationDate = todayStr;
+        saveLocalStorage();
+    }
+
+    function moveToNextAvailablePerson() {
+        if (team.length === 0) return;
+        let attempts = 0;
+        do {
+            currentIndex = (currentIndex + 1) % team.length;
+            attempts++;
+        } while (absent[team[currentIndex]] && attempts < team.length);
+    }
+
+    function getActivePerson() {
+        if (team.length === 0) return "-";
+        let idx = currentIndex % team.length;
+        let safety = 0;
+        while (absent[team[idx]] && safety < team.length) {
+            idx = (idx + 1) % team.length;
+            safety++;
+        }
+        return team[idx];
+    }
+
+    function getNextPerson() {
+        if (team.length <= 1) return "-";
+        let idx = (currentIndex + 1) % team.length;
+        let safety = 0;
+        while (absent[team[idx]] && safety < team.length) {
+            idx = (idx + 1) % team.length;
+            safety++;
+        }
+        return team[idx];
+    }
+
+    function syncWithCloud(onComplete) {
+        document.getElementById('syncStatus').innerText = '⏳ Nalagam...';
         
-        logActivity(`Uporabnik ${loggedInUser} se je prijavil v aplikacijo.`);
-        renderAdminData();
-        syncToCloud(null, true);
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.record) {
+                const cloudData = data.record;
+                if (!cloudData.timestamp || cloudData.timestamp >= appTimestamp) {
+                    if (cloudData.team) team = cloudData.team;
+                    if (cloudData.counts) counts = cloudData.counts;
+                    if (cloudData.absent) absent = cloudData.absent;
+                    if (cloudData.currentRoundPaid) currentRoundPaid = cloudData.currentRoundPaid;
+                    if (typeof cloudData.currentIndex === 'number') currentIndex = cloudData.currentIndex;
+                    if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
+                    appTimestamp = cloudData.timestamp || Date.now();
+                    saveLocalStorage();
+                } else {
+                    pushToCloud();
+                    return;
+                }
+            }
+            document.getElementById('syncStatus').innerText = '✅ V oblaku';
+            logActivity("Podatki uspešno sinhronizirani z oblakom.");
+            renderUI();
+            if (onComplete) onComplete(true);
+        })
+        .catch(() => {
+            document.getElementById('syncStatus').innerText = '⚠️ Lokalno';
+            logActivity("Povezava z oblakom ni uspela. Uporabljam lokalne podatke.");
+            renderUI();
+            if (onComplete) onComplete(false);
+        });
     }
 
-    function promptChangeUser() {
-        checkLogin();
+    function pushToCloud(onComplete) {
+        appTimestamp = Date.now();
+        saveLocalStorage();
+        
+        const payload = { team, counts, absent, currentRoundPaid, currentIndex, lastRotationDate, timestamp: appTimestamp };
+
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if (res.ok) {
+                document.getElementById('syncStatus').innerText = '✅ V oblaku';
+                if (onComplete) onComplete(true);
+            } else {
+                document.getElementById('syncStatus').innerText = '⚠️ Napaka';
+                if (onComplete) onComplete(false);
+            }
+        })
+        .catch(() => {
+            document.getElementById('syncStatus').innerText = '⚠️ Brez povezave';
+            if (onComplete) onComplete(false);
+        });
     }
 
-    function sendWebhookPayload(title, description) {
-        if (!WEBHOOK) return;
-        const adaptiveCardPayload = {
+    function confirmMyCoffee() {
+        const active = getActivePerson();
+        if (active === "-") return;
+
+        if (confirm(`Ali potrjuješ, da je ${active} danes dal za kavo?`)) {
+            counts[active] = (counts[active] || 0) + 1;
+            currentRoundPaid[active] = true;
+            logActivity(`Potrjena runda za: ${active}`);
+            renderUI();
+            pushToCloud((success) => {
+                if (success) alert("Runda uspešno potrjena!");
+            });
+        }
+    }
+
+    function cantGiveCoffee() {
+        const active = getActivePerson();
+        if (active === "-") return;
+
+        if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
+            absent[active] = true;
+            moveToNextAvailablePerson();
+            logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega.`);
+            renderUI();
+            pushToCloud((success) => {
+                if (success) alert("Zabeleženo. Vrstni red posodobljen.");
+            });
+        }
+    }
+
+    function sponsorCoffee() {
+        if (!loggedInUser) {
+            alert("Najprej se prijavi!");
+            return;
+        }
+        if (confirm(`Ali potrjuješ, da ${loggedInUser} danes prostovoljno časti kavo?`)) {
+            counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
+            currentRoundPaid[loggedInUser] = true;
+            logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
+            renderUI();
+            pushToCloud((success) => {
+                if (success) alert("Hvala za častitko!");
+            });
+        }
+    }
+
+    function renderUI() {
+        const active = getActivePerson();
+        const next = getNextPerson();
+        document.getElementById('currentPersonName').innerText = active;
+        document.getElementById('nextPersonName').innerText = next;
+
+        const grid = document.getElementById('membersGrid');
+        grid.innerHTML = '';
+
+        team.forEach(name => {
+            const isNext = (name === active);
+            const isPaid = currentRoundPaid[name];
+            const isAbs = absent[name];
+
+            let cardClass = "member-card";
+            let statusText = "Aktiven";
+            
+            if (isAbs) {
+                cardClass += " is-absent";
+                statusText = "🌴 Dopust / Odsoten";
+            } else if (isPaid) {
+                cardClass += " is-paid";
+                statusText = "✅ Že dal za kavo";
+            } else if (isNext) {
+                cardClass += " is-next";
+                statusText = "👉 Na vrsti danes";
+            }
+
+            const card = document.createElement('div');
+            card.className = cardClass;
+            card.innerHTML = `
+                <div class="member-name">
+                    <span>${name}</span>
+                </div>
+                <div class="member-meta">${statusText}</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function sendTeamsNotification() {
+        if (!webhookUrl) {
+            alert("Webhook URL ni nastavljen!");
+            return;
+        }
+        const active = getActivePerson();
+        const payload = {
             "type": "message",
             "attachments": [{
                 "contentType": "application/vnd.microsoft.card.adaptive",
@@ -800,735 +742,173 @@
                     "type": "AdaptiveCard",
                     "version": "1.2",
                     "body": [
-                        { "type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium", "color": "Accent" },
-                        { "type": "TextBlock", "text": description, "wrap": true }
+                        { "type": "TextBlock", "text": "☕ ODMOR ZA KAVO", "weight": "Bolder", "size": "Medium", "color": "Accent" },
+                        { "type": "TextBlock", "text": `Čas je za kavo! Danes je po razporedu na vrsti: **${active}**`, "wrap": true }
                     ]
                 }
             }]
         };
-        fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(adaptiveCardPayload) }).catch(() => {});
-    }
 
-    function applyGridColumnsStyle() {
-        const gridElem = document.getElementById('cards');
-        if (gridElem) gridElem.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
-        const selectElem = document.getElementById('gridColumnsSelect');
-        if (selectElem) selectElem.value = gridColumns;
-    }
-
-    function updateGridColumnsSetting(val) {
-        gridColumns = val;
-        localStorage.setItem('gridColumns', gridColumns);
-        applyGridColumnsStyle();
-        logActivity(`Spremenjeno število stolpcev mrežnega prikaza na ${val}.`);
-        syncToCloud(null, true);
-    }
-
-    // DODAN PARAMETER skipFetch ZA PREPREČEVANJE RACE CONDITION TEŽAV PRI HITRIH SHRANJEVanjih
-    function syncToCloud(onSuccessCallback, skipFetch = false) {
-        document.getElementById('status').innerText = '⏳ Sinhroniziram...';
-        
-        if (skipFetch) {
-            performPutRequest(onSuccessCallback);
-            return;
-        }
-
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.record) mergeData(data.record);
-            performPutRequest(onSuccessCallback);
-        })
-        .catch(() => {
-            performPutRequest(onSuccessCallback);
-        });
-    }
-
-    function performPutRequest(onSuccessCallback) {
-        appTimestamp = Date.now();
-        const payload = {
-            team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
-            currentRoundPaid: currentRoundPaid, forcedNextPerson: forcedNextPerson,
-            confirmedDateStr: confirmedDateStr, confirmedPersonName: confirmedPersonName,
-            gridColumns: gridColumns, timestamp: appTimestamp,
-            dateString: new Date().toLocaleString('sl-SI')
-        };
-
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_API_KEY
-            },
+        fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
-        .then(response => {
-            if (response.ok) {
-                document.getElementById('status').innerText = '✅ V oblaku';
-                saveLocalCache();
-                if (typeof onSuccessCallback === 'function') onSuccessCallback(true);
-            } else {
-                document.getElementById('status').innerText = '⚠️ Napaka oblaka';
-                saveLocalCache();
-                if (typeof onSuccessCallback === 'function') onSuccessCallback(false);
-            }
+        .then(() => {
+            alert("Opomnik poslan v Teams!");
+            logActivity("Poslan Teams opomnik.");
         })
-        .catch(() => {
-            document.getElementById('status').innerText = '⚠️ Brez povezave';
-            saveLocalCache();
-            if (typeof onSuccessCallback === 'function') onSuccessCallback(false);
-        });
+        .catch(() => alert("Napaka pri pošiljanju v Teams."));
     }
 
-    function fetchDataFromCloud() {
-        document.getElementById('status').innerText = '⏳ Nalagam...';
-        logActivity("Ročno osveževanje podatkov iz oblaka.");
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
-        })
-        .then(res => res.json())
-        .then(data => {
-            const record = data.record;
-            if (record) {
-                mergeData(record);
-                if (record.gridColumns) {
-                    gridColumns = record.gridColumns;
-                    localStorage.setItem('gridColumns', gridColumns);
-                }
-                localStorage.setItem('confirmedDateStr', confirmedDateStr);
-                localStorage.setItem('confirmedPersonName', confirmedPersonName);
-                
-                applyGridColumnsStyle();
-                render();
-                renderAdminData();
-                saveLocalCache();
-                document.getElementById('status').innerText = '✅ Osveženo';
-                alert("Podatki uspešno osveženi iz oblaka!");
-            }
-        })
-        .catch(() => {
-            document.getElementById('status').innerText = '❌ Napaka';
-            alert("Napaka pri branju iz oblaka. Preveri povezavo.");
-        });
+    function openAdminModal() {
+        document.getElementById('adminModal').style.display = 'flex';
+        document.getElementById('authSection').style.display = 'block';
+        document.getElementById('settingsContent').style.display = 'none';
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('authError').style.display = 'none';
     }
 
-    function saveLocalCache() {
-        const backupData = {
-            team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
-            currentRoundPaid: currentRoundPaid, forcedNextPerson: forcedNextPerson,
-            confirmedDateStr: confirmedDateStr, confirmedPersonName: confirmedPersonName,
-            gridColumns: gridColumns, timestamp: appTimestamp,
-            dateString: new Date().toLocaleString('sl-SI')
-        };
-        localStorage.setItem('coffee_app_daily_backup', JSON.stringify(backupData));
-        localStorage.setItem('confirmedDateStr', confirmedDateStr);
-        localStorage.setItem('confirmedPersonName', confirmedPersonName);
-        localStorage.setItem('gridColumns', gridColumns);
-
-        try {
-            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
-            const nowStr = new Date().toLocaleString('sl-SI');
-            backups.unshift({ time: nowStr, data: backupData });
-            if (backups.length > 10) backups = backups.slice(0, 10);
-            localStorage.setItem('coffee_app_history_backups', JSON.stringify(backups));
-            populateBackupSelect();
-        } catch(e) {}
+    function closeAdminModal() {
+        document.getElementById('adminModal').style.display = 'none';
+        renderUI();
     }
 
-    function populateBackupSelect() {
-        const select = document.getElementById('localBackupSelect');
-        if (!select) return;
-        select.innerHTML = '';
-        try {
-            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
-            if (backups.length === 0) {
-                const opt = document.createElement('option');
-                opt.innerText = "Ni razpoložljivih kopij";
-                select.appendChild(opt);
-                return;
-            }
-            backups.forEach((b, idx) => {
-                const opt = document.createElement('option');
-                opt.value = idx;
-                opt.innerText = `Kopija od: ${b.time}`;
-                select.appendChild(opt);
-            });
-        } catch(e) {}
-    }
-
-    function restoreSelectedLocalBackup() {
-        const select = document.getElementById('localBackupSelect');
-        if (!select || select.value === "") return;
-        const idx = parseInt(select.value);
-        try {
-            let backups = JSON.parse(localStorage.getItem('coffee_app_history_backups') || '[]');
-            if (backups[idx] && backups[idx].data) {
-                const data = backups[idx].data;
-                if (confirm(`Ali želiš obnoviti podatke iz izbrane kopije (${backups[idx].time})?`)) {
-                    saveStateSnapshot();
-                    if (data.team && data.team.length > 0) team = data.team;
-                    mergeData(data);
-                    if (data.gridColumns) {
-                        gridColumns = data.gridColumns;
-                        localStorage.setItem('gridColumns', gridColumns);
-                    }
-
-                    applyGridColumnsStyle();
-                    render();
-                    renderAdminData();
-                    syncToCloud(null, true);
-                    logActivity(`Obnovljena lokalna varnostna kopija (${backups[idx].time}).`);
-                    alert("Podatki uspešno obnovljeni iz lokalne kopije!");
-                    closeModal();
-                }
-            }
-        } catch(e) {
-            alert("Napaka pri obnavljanju kopije.");
-        }
-    }
-
-    function downloadJsonFile() {
-        const backupData = {
-            team: team, counts: counts, absent: absent, tempAbsent: tempAbsent,
-            currentRoundPaid: currentRoundPaid, forcedNextPerson: forcedNextPerson,
-            confirmedDateStr: confirmedDateStr, confirmedPersonName: confirmedPersonName,
-            gridColumns: gridColumns, timestamp: appTimestamp,
-            dateString: new Date().toLocaleString('sl-SI')
-        };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `odmor_za_kavo_backup_${new Date().toISOString().slice(0,10)}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        logActivity("Prenesena JSON varnostna kopija na računalnik.");
-    }
-
-    function handleFileLoadedFromPC(event) {
-        if (loggedInUser !== "Filipšek") {
-            alert("Samo uporabnik Robert lahko nalaga podatke!");
-            event.target.value = '';
-            return;
-        }
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                if (confirm(`Naloži podatke iz datoteke (${file.name})?`)) {
-                    saveStateSnapshot();
-                    if (data.team && data.team.length > 0) team = data.team;
-                    mergeData(data);
-                    if (data.gridColumns) {
-                        gridColumns = data.gridColumns;
-                        localStorage.setItem('gridColumns', gridColumns);
-                    }
-                    
-                    applyGridColumnsStyle();
-                    render();
-                    renderAdminData();
-                    syncToCloud(null, true);
-                    logActivity(`Naloženi podatki iz JSON datoteke (${file.name}).`);
-                    alert("Uspešno naloženo in sinhronizirano!");
-                    closeModal();
-                }
-            } catch(err) { alert("Napaka pri branju JSON datoteke."); }
-            event.target.value = '';
-        };
-        reader.readAsText(file);
-    }
-
-    function initApp() {
-        logActivity("Aplikacija inicializirana in zagnana.");
-        try {
-            const cached = localStorage.getItem('coffee_app_daily_backup');
-            if (cached) {
-                const data = JSON.parse(cached);
-                if (data.team && Array.isArray(data.team) && data.team.length > 0) {
-                    team = data.team;
-                }
-                mergeData(data);
-                appTimestamp = data.timestamp || Date.now();
-                if (data.gridColumns) {
-                    gridColumns = data.gridColumns;
-                    localStorage.setItem('gridColumns', gridColumns);
-                }
-            }
-        } catch (e) {}
-
-        if (!team || team.length === 0) team = [...defaultTeam];
-        team.forEach(name => { 
-            if (!(name in counts)) counts[name] = 0; 
-            if (!(name in absent)) absent[name] = false;
-            if (!(name in tempAbsent)) tempAbsent[name] = false;
-            if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
-        });
-
-        const todayStr = new Date().toDateString();
-        if (!lastRecordedDate) {
-            lastRecordedDate = todayStr;
-            localStorage.setItem('lastRecordedDate', todayStr);
-        } else if (lastRecordedDate !== todayStr) {
-            Object.keys(tempAbsent).forEach(k => tempAbsent[k] = false);
-            confirmedDateStr = "";
-            confirmedPersonName = "";
-            localStorage.setItem('confirmedDateStr', "");
-            localStorage.setItem('confirmedPersonName', "");
-            lastRecordedDate = todayStr;
-            localStorage.setItem('lastRecordedDate', todayStr);
-        }
-
-        applyGridColumnsStyle();
-
-        if (!loggedInUser) {
-            checkLogin();
+    function checkAdminPassword() {
+        const pass = document.getElementById('adminPasswordInput').value;
+        if (pass === 'geslo') {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('settingsContent').style.display = 'block';
+            document.getElementById('webhookInput').value = webhookUrl;
+            setupNextDropdown();
+            renderAdminMembers();
+            logActivity("Skrbniške nastavitve odklenjene.");
         } else {
-            document.getElementById('currentLoggedInUser').innerText = loggedInUser;
+            document.getElementById('authError').style.display = 'block';
         }
-        
-        render();
-        renderAdminData();
-        populateBackupSelect();
-        updateActivityLogView();
-
-        setInterval(() => { saveLocalCache(); }, 2 * 60 * 60 * 1000);
-
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
-        })
-        .then(res => res.json())
-        .then(data => {
-            const record = data.record;
-            if (record) {
-                const cloudTimestamp = record.timestamp || 0;
-                if (cloudTimestamp >= appTimestamp || !appTimestamp) {
-                    mergeData(record);
-                    if (record.gridColumns) {
-                        gridColumns = record.gridColumns;
-                        localStorage.setItem('gridColumns', gridColumns);
-                    }
-                    applyGridColumnsStyle();
-                    render();
-                    renderAdminData();
-                    saveLocalCache();
-                } else {
-                    syncToCloud(null, true);
-                }
-                document.getElementById('status').innerText = '✅ V oblaku';
-            }
-        }).catch(() => {
-            document.getElementById('status').innerText = '⚠️ Lokalni način';
-        });
     }
 
-    function isUnavailable(name) { return absent[name] || tempAbsent[name]; }
-
-    function getNextPerson() {
-        if (forcedNextPerson && !isUnavailable(forcedNextPerson) && !currentRoundPaid[forcedNextPerson]) return forcedNextPerson;
-        if (team.length === 0) return "-";
-        
-        for (let i = 0; i < team.length; i++) {
-            let candidate = team[i];
-            if (!isUnavailable(candidate) && !currentRoundPaid[candidate]) return candidate;
-        }
-
-        const presentMembers = team.filter(name => !isUnavailable(name));
-        if (presentMembers.length > 0 && presentMembers.every(name => currentRoundPaid[name])) {
-            team.forEach(name => currentRoundPaid[name] = false);
-        }
-        return team.find(name => !isUnavailable(name)) || team[0];
-    }
-
-    function render() {
-        const todayStr = new Date().toDateString();
-        const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
-        const scheduledPerson = getNextPerson();
-
-        let displayedPerson = "-";
-        if (isAlreadyConfirmedToday) {
-            displayedPerson = confirmedPersonName;
-        } else if (temporaryVolunteerToday) {
-            displayedPerson = temporaryVolunteerToday;
-        } else {
-            displayedPerson = scheduledPerson;
-        }
-
-        document.getElementById('mainTitleLabel').innerText = isAlreadyConfirmedToday ? "Danes kavo časti:" : "Danes je na vrsti da kavo časti:";
-        document.getElementById('selectedPerson').innerText = displayedPerson;
-
-        const teamsBtn = document.getElementById('teamsButton');
-        if (isAlreadyConfirmedToday) {
-            teamsBtn.innerText = "📢 Povabi na kavo";
-            teamsBtn.style.background = "linear-gradient(180deg, #27ae60 0%, #1e8449 100%)";
-            teamsBtn.style.boxShadow = "0 3px 0 #145a32";
-        } else {
-            teamsBtn.innerText = "📢 Opomnik v Teams";
-            teamsBtn.style.background = "linear-gradient(180deg, #5b63d3 0%, #464eb8 100%)";
-            teamsBtn.style.boxShadow = "0 3px 0 #2f3480";
-        }
-
-        const cardsContainer = document.getElementById('cards');
-        cardsContainer.innerHTML = '';
-        
+    function setupNextDropdown() {
+        const sel = document.getElementById('setNextSelect');
+        sel.innerHTML = '';
         team.forEach(name => {
-            const isAb = absent[name] || false;
-            const isTempAb = tempAbsent[name] || false;
-            const unavailable = isAb || isTempAb;
-            const isTurn = (name === displayedPerson) && !unavailable;
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name;
+            if (name === getActivePerson()) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
 
-            let badgeHtml = '';
-            if (isAb) badgeHtml = `<span class="badge badge-absent">🌴 Odsoten</span>`;
-            else if (isTempAb) badgeHtml = `<span class="badge badge-temp">⏳ Ni tu</span>`;
-            else if (currentRoundPaid[name]) badgeHtml = `<span class="badge" style="background:#3498db;">✓ Že dal</span>`;
-            else if (isTurn) badgeHtml = `<span class="badge badge-turn">Naslednji</span>`;
+    function applyManualNext() {
+        const sel = document.getElementById('setNextSelect');
+        const chosen = sel.value;
+        const index = team.indexOf(chosen);
+        if (index !== -1) {
+            currentIndex = index;
+            logActivity(`Ročno nastavljen naslednji/trenutni: ${chosen}`);
+            alert(`Določeno: Na vrsti je ${chosen}`);
+            renderAdminMembers();
+        }
+    }
 
-            const card = document.createElement('div');
-            card.className = `info-card ${isAb ? 'absent' : (isTempAb ? 'temp-absent' : '')} ${isTurn ? 'is-turn' : ''}`;
-            
-            card.innerHTML = `
-                <div class="card-name">${name}</div>
-                <div class="card-status-row">
-                    <div>${badgeHtml}</div>
-                </div>
-                <div class="card-actions-row">
-                    <button class="toggle-absent-btn" onclick="toggleAbsent('${name}')">${isAb ? '👤 Vrni' : '🌴 Dopust'}</button>
-                    <button class="toggle-absent-btn" style="background:${isTempAb ? '#fef3c7' : '#ffffff'}; color:${isTempAb ? '#b45309' : 'inherit'}" onclick="toggleTempAbsent('${name}')">${isTempAb ? '👤 Vrni' : '⏳ Ni tu'}</button>
+    function renderAdminMembers() {
+        const isFilipsek = (loggedInUser === "Filipšek");
+        document.getElementById('permissionWarning').style.display = isFilipsek ? 'none' : 'block';
+        document.getElementById('addMemberBox').style.display = isFilipsek ? 'flex' : 'none';
+
+        const list = document.getElementById('adminMembersList');
+        list.innerHTML = '';
+
+        team.forEach((name, index) => {
+            const isAbs = absent[name];
+            const isPaid = currentRoundPaid[name];
+
+            const row = document.createElement('div');
+            row.className = 'admin-member-row';
+            row.innerHTML = `
+                <div class="admin-member-name">${name}</div>
+                <div class="admin-controls-inline">
+                    <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#10b981'}; color:white;" onclick="toggleAbsent('${name}')">
+                        ${isAbs ? '🌴 Odsoten' : '✅ Prisoten'}
+                    </button>
+                    <button class="mini-btn" style="background: ${isPaid ? '#3b82f6' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
+                        ${isPaid ? '✅ Dal rundo' : '⭕ Ni dal'}
+                    </button>
+                    ${isFilipsek ? `
+                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
+                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
+                        <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️</button>
+                    ` : ''}
                 </div>
             `;
-            cardsContainer.appendChild(card);
+            list.appendChild(row);
         });
-
-        renderVolunteerGrid();
-    }
-
-    function confirmPaymentForSelected() {
-        const personToConfirm = temporaryVolunteerToday || getNextPerson();
-        if (personToConfirm === "-") return;
-        
-        if (confirm(`Ali potrjuješ, da je ${personToConfirm} danes dal za rundo?`)) {
-            saveStateSnapshot();
-            temporaryVolunteerToday = null; 
-            forcedNextPerson = null;
-            confirmedDateStr = new Date().toDateString();
-            confirmedPersonName = personToConfirm;
-            localStorage.setItem('confirmedDateStr', confirmedDateStr);
-            localStorage.setItem('confirmedPersonName', confirmedPersonName);
-
-            counts[personToConfirm] = (counts[personToConfirm] || 0) + 1;
-            currentRoundPaid[personToConfirm] = true;
-
-            logActivity(`Potrjeno plačilo runde za: ${personToConfirm} (Prijavljen: ${loggedInUser})`);
-            render();
-            renderAdminData();
-            
-            syncToCloud((success) => {
-                if (!success) alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela!");
-            });
-        }
-    }
-
-    function skipNextPerson() {
-        const scheduledPerson = getNextPerson();
-        if (scheduledPerson === "-") return;
-
-        if (confirm(`Označi, da ${scheduledPerson} danes ni prisoten?`)) {
-            saveStateSnapshot();
-            tempAbsent[scheduledPerson] = true;
-            temporaryVolunteerToday = null;
-            forcedNextPerson = null;
-
-            const newNextPerson = getNextPerson();
-            sendWebhookPayload("⚠️ SPREMEMBA PRI KAVI!", `Sodelavec **${scheduledPerson}** je danes odsoten.\n\n👉 **Danes kavo časti:** ${newNextPerson}`);
-            logActivity(`Odsotnost označena za: ${scheduledPerson}. Nov plačnik: ${newNextPerson}`);
-            
-            render();
-            renderAdminData();
-            syncToCloud(null, true);
-        }
     }
 
     function toggleAbsent(name) {
-        saveStateSnapshot();
         absent[name] = !absent[name];
-        if (absent[name]) tempAbsent[name] = false;
-
-        logActivity(`Spremenjen status odsotnosti (Dopust) za ${name}: ${absent[name]}`);
-        render();
-        renderAdminData();
-        syncToCloud(null, true);
+        renderAdminMembers();
     }
 
-    function toggleTempAbsent(name) {
-        saveStateSnapshot();
-        tempAbsent[name] = !tempAbsent[name];
-        if (tempAbsent[name]) absent[name] = false;
-
-        logActivity(`Spremenjen status začasne odsotnosti za ${name}: ${tempAbsent[name]}`);
-        render();
-        renderAdminData();
-        syncToCloud(null, true);
-    }
-
-    function toggleVolunteerMenu() {
-        const menu = document.getElementById('volunteerSelector');
-        const isOpen = (menu.style.display === 'block');
-        menu.style.display = isOpen ? 'none' : 'block';
-        logActivity(isOpen ? "Zaprt meni 'Časti nekdo drug?'." : "Odprt meni 'Časti nekdo drug?'.");
-    }
-
-    function renderVolunteerGrid() {
-        const grid = document.getElementById('volunteerGrid');
-        if (!grid) return;
-        grid.innerHTML = '';
-        team.filter(m => !isUnavailable(m)).forEach(name => {
-            const btn = document.createElement('button');
-            btn.className = 'btn-volunteer-name';
-            btn.innerText = name;
-            btn.onclick = () => {
-                if (confirm(`Ali ${name} časti rundo?`)) {
-                    saveStateSnapshot();
-                    document.getElementById('volunteerSelector').style.display = 'none';
-                    temporaryVolunteerToday = name;
-                    confirmedDateStr = new Date().toDateString();
-                    confirmedPersonName = name;
-                    localStorage.setItem('confirmedDateStr', confirmedDateStr);
-                    localStorage.setItem('confirmedPersonName', confirmedPersonName);
-
-                    counts[name] = (counts[name] || 0) + 1;
-                    currentRoundPaid[name] = true;
-                    logActivity(`Prostovoljno prevzel rundo: ${name}`);
-                    render();
-                    renderAdminData();
-                    
-                    syncToCloud((success) => {
-                        if (!success) alert("⚠️ OPOZORILO: Sinhronizacija z oblakom ni uspela!");
-                    });
-                }
-            };
-            grid.appendChild(btn);
-        });
-    }
-
-    function handleTeamsButtonClick() {
-        const todayStr = new Date().toDateString();
-        const isAlreadyConfirmedToday = (confirmedDateStr === todayStr && confirmedPersonName !== "");
-
-        if (isAlreadyConfirmedToday) {
-            sendWebhookPayload("☕ VABILO NA KAVO ☕", `Uporabnik **${confirmedPersonName}** v tem trenutku vabi na kavo! Pridružite se v čajnici/kavarni.`);
-            logActivity(`Poslano vabilo na kavo v Teams (${confirmedPersonName}).`);
-            alert("Poslano vabilo na kavo v Teams!");
-        } else {
-            const scheduledPerson = getNextPerson();
-            const activeToday = temporaryVolunteerToday || scheduledPerson;
-            sendWebhookPayload("☕ ODMOR ZA KAVO ☕", `Bliža se čas za kavo! Odprite aplikacijo, da preverite kdo daje za kavo (po razporedu je na vrsti: **${activeToday}**).`);
-            logActivity("Poslan opomnik za kavo v Teams.");
-            alert("Opomnik je bil poslan v Teams!");
-        }
+    function togglePaid(name) {
+        currentRoundPaid[name] = !currentRoundPaid[name];
+        renderAdminMembers();
     }
 
     function moveMember(index, direction) {
         if (loggedInUser !== "Filipšek") return;
-        saveStateSnapshot();
-        const idx = parseInt(index), newIndex = idx + direction;
-        if (newIndex < 0 || newIndex >= team.length) return;
-        const temp = team[idx]; team[idx] = team[newIndex]; team[newIndex] = temp;
-        logActivity(`Premaknjen član ${team[newIndex]} v seznamu.`);
-        renderAdminData();
-        render();
-        syncToCloud(null, true);
-    }
-
-    // POSODOBLJENA FUNKCIJA Z skipFetch: true ZA TAKOJŠNJE IN ZANESLJIVO SHRANJEVANJE POSAMEZNE VRSTICE
-    function saveAdminMemberRow(name, countInputId, paidCheckboxId, makeNextCheckboxId) {
-        if (loggedInUser !== "Filipšek") {
-            alert("Samo uporabnik Robert lahko ureja nastavitve!");
-            return;
-        }
-
-        const countVal = parseInt(document.getElementById(countInputId).value);
-        const isPaid = document.getElementById(paidCheckboxId).checked;
-        const makeNext = document.getElementById(makeNextCheckboxId).checked;
-
-        if (isNaN(countVal) || countVal < 0) {
-            alert("Prosim vnesi veljavno število (0 ali več).");
-            return;
-        }
-
-        saveStateSnapshot();
-
-        counts[name] = countVal;
-        currentRoundPaid[name] = isPaid;
-
-        if (makeNext) {
-            forcedNextPerson = name;
-        } else if (forcedNextPerson === name) {
-            forcedNextPerson = null;
-        }
-
-        logActivity(`Skrbniško shranjeno za ${name}: Štev.=${countVal}, Že dal=${isPaid}, Naslednji=${makeNext}`);
-        
-        renderAdminData();
-        render();
-        saveLocalCache();
-        
-        // Uporabimo skipFetch: true, da preprečimo prepisovanje lokalnega stanja s starimi podatki iz oblaka med hitrimi shranjevanji
-        syncToCloud((success) => {
-            if (success) {
-                alert(`Spremembe za ${name} uspešno shranjene!`);
-            } else {
-                alert(`Spremembe za ${name} shranjene lokalno (napaka oblaka).`);
-            }
-        }, true);
-    }
-
-    function renderAdminData() {
-        const isFilipsek = (loggedInUser === "Filipšek");
-        document.getElementById('adminPermissionWarning').style.display = isFilipsek ? 'none' : 'block';
-        document.getElementById('addMemberSection').style.display = isFilipsek ? 'flex' : 'none';
-
-        populateBackupSelect();
-        updateActivityLogView();
-
-        const container = document.getElementById('adminCardsContainer');
-        if (!container) return;
-        container.innerHTML = '';
-        
-        let total = 0;
-        team.forEach(name => total += (counts[name] || 0));
-        let avg = team.length > 0 ? Math.round(total / team.length) : 0;
-        const currentNext = getNextPerson();
-
-        team.forEach((name, index) => {
-            const cnt = Number(counts[name] || 0);
-            const diff = cnt - avg;
-            const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
-            const isNext = (name === currentNext);
-            const isForced = (forcedNextPerson === name);
-            const isPaid = !!currentRoundPaid[name];
-
-            const countInputId = `admin_cnt_${index}`;
-            const paidCheckboxId = `admin_paid_${index}`;
-            const makeNextCheckboxId = `admin_next_${index}`;
-
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'member-card-admin';
-            cardDiv.innerHTML = `
-                <div class="member-card-header">
-                    <span>${name} ${isNext ? '<span style="color:#27ae60; font-size:10px;">(Trenutno naslednji)</span>' : ''}</span>
-                    <span style="font-size:10px; color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">Bilanca: <b>${diffStr}</b></span>
-                </div>
-                <div class="member-controls-row">
-                    <div class="control-group">
-                        <label>Število rund:</label>
-                        <input type="number" id="${countInputId}" min="0" value="${cnt}">
-                    </div>
-                    <div class="control-group" style="justify-content:center;">
-                        <label>&nbsp;</label>
-                        <label class="control-group-checkbox">
-                            <input type="checkbox" id="${paidCheckboxId}" ${isPaid ? 'checked' : ''}> Že dal danes?
-                        </label>
-                    </div>
-                    <div class="control-group" style="justify-content:center;">
-                        <label>&nbsp;</label>
-                        <label class="control-group-checkbox">
-                            <input type="checkbox" id="${makeNextCheckboxId}" ${isForced ? 'checked' : ''}> Nastavi za naslednjega
-                        </label>
-                    </div>
-                    <div style="margin-top:auto;">
-                        ${isFilipsek ? `<button class="btn-3d btn-confirm" style="padding:6px 10px; font-size:10px;" onclick="saveAdminMemberRow('${name}', '${countInputId}', '${paidCheckboxId}', '${makeNextCheckboxId}')">💾 Shrani</button>` : ''}
-                    </div>
-                </div>
-                ${isFilipsek ? `
-                <div style="display:flex; gap:6px; margin-top:2px; border-top:1px solid #e2e8f0; padding-top:4px;">
-                    <button style="font-size:10px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px;" onclick="moveMember('${index}', -1)">⬆️ Premakni gor</button>
-                    <button style="font-size:10px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px;" onclick="moveMember('${index}', 1)">⬇️ Premakni dol</button>
-                    <button style="font-size:10px; cursor:pointer; background:#fff; color:#e74c3c; border:1px solid #fadbd8; border-radius:4px; padding:2px 6px; margin-left:auto;" onclick="removeMember('${name}')">🗑️ Odstrani</button>
-                </div>` : ''}
-            `;
-            container.appendChild(cardDiv);
-        });
+        const newIdx = index + direction;
+        if (newIdx < 0 || newIdx >= team.length) return;
+        const temp = team[index];
+        team[index] = team[newIdx];
+        team[newIdx] = temp;
+        renderAdminMembers();
     }
 
     function addMember() {
         if (loggedInUser !== "Filipšek") return;
-        const input = document.getElementById('newMemberName');
+        const input = document.getElementById('newMemberNameInput');
         const name = input.value.trim();
         if (!name || team.includes(name)) return;
-        saveStateSnapshot();
         team.push(name);
         counts[name] = 0;
         absent[name] = false;
-        tempAbsent[name] = false;
         currentRoundPaid[name] = false;
         input.value = '';
-        logActivity(`Dodan nov član ekipe: ${name}`);
-        render();
-        renderAdminData();
-        syncToCloud(null, true);
+        logActivity(`Dodan nov član: ${name}`);
+        setupNextDropdown();
+        renderAdminMembers();
     }
 
     function removeMember(name) {
         if (loggedInUser !== "Filipšek") return;
-        if (confirm(`Odstrani sodelavca ${name}?`)) {
-            saveStateSnapshot();
+        if (confirm(`Odstrani člana ${name}?`)) {
             team = team.filter(m => m !== name);
             delete counts[name];
             delete absent[name];
-            delete tempAbsent[name];
             delete currentRoundPaid[name];
-            logActivity(`Odstranjen član ekipe: ${name}`);
-            render();
-            renderAdminData();
-            syncToCloud(null, true);
+            logActivity(`Odstranjen član: ${name}`);
+            setupNextDropdown();
+            renderAdminMembers();
         }
     }
 
-    function openModal() {
-        document.getElementById('modalOverlay').style.display = 'flex';
-        document.getElementById('authView').style.display = 'block';
-        document.getElementById('settingsView').style.display = 'none';
-        document.getElementById('passInput').value = '';
-        document.getElementById('authError').style.display = 'none';
-        logActivity("Odprto okno z nastavitvami.");
-    }
-
-    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
-
-    function handlePasswordKey(event) { if (event.key === 'Enter') checkPassword(); }
-
-    function checkPassword() {
-        if (document.getElementById('passInput').value === 'geslo') {
-            document.getElementById('authView').style.display = 'none';
-            document.getElementById('settingsView').style.display = 'block';
-            document.getElementById('webhookUrl').value = WEBHOOK;
-            applyGridColumnsStyle();
-            renderAdminData();
-            logActivity("Uspešno odklenjene skrbniške nastavitve.");
-        } else {
-            document.getElementById('authError').style.display = 'block';
-            logActivity("Poskus vnosa napačnega skrbniškega gesla.");
-        }
-    }
-
-    function saveConfig() {
-        if (loggedInUser !== "Filipšek") return;
-        WEBHOOK = document.getElementById('webhookUrl').value;
-        localStorage.setItem('WEBHOOK', WEBHOOK);
+    function saveAllAdminChanges() {
+        webhookUrl = document.getElementById('webhookInput').value;
+        localStorage.setItem('WEBHOOK_URL', webhookUrl);
         
-        logActivity("Shranjene konfiguracijske nastavitve.");
-        alert("Shranjeno in sinhronizirano!");
-        closeModal();
-        syncToCloud(null, true);
+        saveLocalStorage();
+        logActivity("Vse spremembe v nastavitvah shranjene.");
+        pushToCloud((success) => {
+            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane v oblak!");
+            else alert("Spremembe shranjene lokalno.");
+            closeAdminModal();
+            renderUI();
+        });
     }
 
-    initApp();
+    window.onload = init;
 </script>
 </body>
 </html>

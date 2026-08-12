@@ -7,6 +7,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <style>
+        /* CSS ostaja enak */
         :root {
             --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             --card-bg: #1e293b;
@@ -393,8 +394,9 @@
             <span class="link-btn" onclick="openLoginModal()">(Zamenjaj)</span>
         </div>
         <div style="display: flex; gap: 6px;">
-            <button class="icon-btn" onclick="syncWithCloud()" title="Osveži podatke">🔄</button>
-            <button class="icon-btn" onclick="openAdminModal()" title="Nastavitve">⚙️</button>
+            <button class="icon-btn" onclick="syncWithCloud(null, true)" title="Osveži podatke s strežnika">🔄</button>
+            <!-- Gumb za nastavitve, ki bo viden samo Filipšku -->
+            <button class="icon-btn" id="settingsBtn" onclick="openAdminModal()" title="Nastavitve" style="display: none;">⚙️</button>
         </div>
     </div>
 </div>
@@ -407,15 +409,8 @@
             <span style="cursor: pointer; font-size: 18px; font-weight: bold; color:var(--text);" onclick="closeAdminModal()">✕</span>
         </div>
 
-        <div id="authSection">
-            <p style="font-size: 13px; color: var(--text);">Vnesi skrbniško geslo za urejanje:</p>
-            <input type="password" id="adminPasswordInput" placeholder="Vnesi geslo" onkeydown="if(event.key==='Enter') checkAdminPassword()">
-            <button class="btn btn-confirm" style="width: 100%;" onclick="checkAdminPassword()">Odkleni nastavitve</button>
-            <p id="authError" style="color: var(--danger); font-size: 12px; display: none; margin-top: 8px;">Napačno geslo!</p>
-        </div>
-
-        <div id="settingsContent" style="display: none;">
-            <p id="permissionWarning" style="color: var(--warning); font-size: 12px; font-weight: bold; display: none;">⚠️ Urejanje članov in vrstnega reda je dovoljeno samo uporabniku Robert.</p>
+        <div id="settingsContent">
+            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek).</p>
             
             <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev naslednjega</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
@@ -434,7 +429,6 @@
             <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🌐 Teams Webhook URL</h3>
             <input type="text" id="webhookInput" placeholder="Vnesi Webhook URL">
 
-            <!-- Skupni gumb za shranjevanje vseh sprememb -->
             <button class="btn btn-confirm" style="width: 100%; margin-top: 15px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
 
             <h3 style="font-size: 12px; color: var(--text); margin-top: 20px; text-transform: uppercase;">📋 Okno aktivnosti in sprememb</h3>
@@ -471,13 +465,13 @@
 
     function init() {
         loadLocalStorage();
-        setupLoginDropdown();
-        checkDateRollover();
-        
         document.getElementById('loginOverlay').style.display = 'flex';
-        
-        renderUI();
-        syncWithCloud();
+        // Ob zagonu VEDNO prisilno prenesemo s strežnika (forceServer = true)
+        syncWithCloud(() => {
+            setupLoginDropdown();
+            checkDateRollover();
+            renderUI();
+        }, true);
     }
 
     function loadLocalStorage() {
@@ -541,6 +535,7 @@
             moveToNextAvailablePerson();
             Object.keys(currentRoundPaid).forEach(k => currentRoundPaid[k] = false);
             logActivity("Nov dan: Avtomatska rotacija na naslednjo osebo.");
+            pushToCloud();
         }
         lastRotationDate = todayStr;
         saveLocalStorage();
@@ -577,18 +572,23 @@
         return team[idx];
     }
 
-    function syncWithCloud(onComplete) {
+    function syncWithCloud(onComplete, forceServer = false) {
         document.getElementById('syncStatus').innerText = '⏳ Nalagam...';
         
+        // Dodan Cache-Control za izogibanje shranjevanju starih podatkov v brskalniku
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+            headers: { 
+                'X-Master-Key': JSONBIN_API_KEY,
+                'Cache-Control': 'no-cache'
+            }
         })
         .then(res => res.json())
         .then(data => {
             if (data && data.record) {
                 const cloudData = data.record;
-                if (!cloudData.timestamp || cloudData.timestamp >= appTimestamp) {
+                // Če smo rekli forceServer ALI pa so podatki v oblaku novejši, vedno prepišemo lokalne!
+                if (forceServer || !cloudData.timestamp || cloudData.timestamp > appTimestamp) {
                     if (cloudData.team) team = cloudData.team;
                     if (cloudData.counts) counts = cloudData.counts;
                     if (cloudData.absent) absent = cloudData.absent;
@@ -597,13 +597,13 @@
                     if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
                     appTimestamp = cloudData.timestamp || Date.now();
                     saveLocalStorage();
-                } else {
+                    logActivity("Podatki prevzeti s strežnika.");
+                } else if (!forceServer && cloudData.timestamp < appTimestamp) {
                     pushToCloud();
                     return;
                 }
             }
             document.getElementById('syncStatus').innerText = '✅ Sinhronizirano';
-            logActivity("Podatki uspešno sinhronizirani s strežnikom.");
             renderUI();
             if (onComplete) onComplete(true);
         })
@@ -649,7 +649,6 @@
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
             
-            // Avtomatski premik na naslednjega na vrsti
             moveToNextAvailablePerson();
             
             logActivity(`Potrjena runda za: ${active}. Avtomatski premik naprej.`);
@@ -684,7 +683,6 @@
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             
-            // Avtomatski premik na naslednjega
             moveToNextAvailablePerson();
             
             logActivity(`${loggedInUser} je prostovoljno častil kavo. Avtomatski premik naprej.`);
@@ -700,6 +698,14 @@
         const next = getNextPerson();
         document.getElementById('currentPersonName').innerText = active;
         document.getElementById('nextPersonName').innerText = next;
+
+        // Skrij ali prikaži nastavitve glede na to, kdo je prijavljen
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (loggedInUser === "Filipšek") {
+            settingsBtn.style.display = 'flex';
+        } else {
+            settingsBtn.style.display = 'none';
+        }
 
         const grid = document.getElementById('membersGrid');
         grid.innerHTML = '';
@@ -770,30 +776,17 @@
     }
 
     function openAdminModal() {
+        if (loggedInUser !== "Filipšek") return; // Dodatna varnost
+        
         document.getElementById('adminModal').style.display = 'flex';
-        document.getElementById('authSection').style.display = 'block';
-        document.getElementById('settingsContent').style.display = 'none';
-        document.getElementById('adminPasswordInput').value = '';
-        document.getElementById('authError').style.display = 'none';
+        document.getElementById('webhookInput').value = webhookUrl;
+        setupNextDropdown();
+        renderAdminMembers();
     }
 
     function closeAdminModal() {
         document.getElementById('adminModal').style.display = 'none';
         renderUI();
-    }
-
-    function checkAdminPassword() {
-        const pass = document.getElementById('adminPasswordInput').value;
-        if (pass === 'geslo') {
-            document.getElementById('authSection').style.display = 'none';
-            document.getElementById('settingsContent').style.display = 'block';
-            document.getElementById('webhookInput').value = webhookUrl;
-            setupNextDropdown();
-            renderAdminMembers();
-            logActivity("Skrbniške nastavitve odklenjene.");
-        } else {
-            document.getElementById('authError').style.display = 'block';
-        }
     }
 
     function setupNextDropdown() {
@@ -814,17 +807,13 @@
         const index = team.indexOf(chosen);
         if (index !== -1) {
             currentIndex = index;
-            logActivity(`Ročno nastavljen naslednji/trenutni: ${chosen}`);
+            logActivity(`Ročno nastavljen naslednji: ${chosen}`);
             alert(`Določeno: Na vrsti je ${chosen}`);
             renderAdminMembers();
         }
     }
 
     function renderAdminMembers() {
-        const isFilipsek = (loggedInUser === "Filipšek");
-        document.getElementById('permissionWarning').style.display = isFilipsek ? 'none' : 'block';
-        document.getElementById('addMemberBox').style.display = isFilipsek ? 'flex' : 'none';
-
         const list = document.getElementById('adminMembersList');
         list.innerHTML = '';
 
@@ -843,11 +832,9 @@
                     <button class="mini-btn" style="background: ${isPaid ? '#3b82f6' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
                         ${isPaid ? '✅ Dal rundo' : '⭕ Ni dal'}
                     </button>
-                    ${isFilipsek ? `
-                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
-                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
-                        <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️</button>
-                    ` : ''}
+                    <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
+                    <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
+                    <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️</button>
                 </div>
             `;
             list.appendChild(row);
@@ -865,7 +852,6 @@
     }
 
     function moveMember(index, direction) {
-        if (loggedInUser !== "Filipšek") return;
         const newIdx = index + direction;
         if (newIdx < 0 || newIdx >= team.length) return;
         const temp = team[index];
@@ -875,7 +861,6 @@
     }
 
     function addMember() {
-        if (loggedInUser !== "Filipšek") return;
         const input = document.getElementById('newMemberNameInput');
         const name = input.value.trim();
         if (!name || team.includes(name)) return;
@@ -890,7 +875,6 @@
     }
 
     function removeMember(name) {
-        if (loggedInUser !== "Filipšek") return;
         if (confirm(`Odstrani člana ${name}?`)) {
             team = team.filter(m => m !== name);
             delete counts[name];

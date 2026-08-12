@@ -397,6 +397,31 @@
             box-sizing: border-box;
             width: 100%;
         }
+
+        .forced-next-buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .btn-forced-choice {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: var(--text);
+            padding: 8px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.1s ease;
+        }
+        .btn-forced-choice.active {
+            background: #eafaf1;
+            border-color: #27ae60;
+            color: #1e8449;
+            font-weight: 800;
+        }
         
         .activity-log-box {
             background: #f8fafc;
@@ -507,22 +532,20 @@
                 <h3>🎯 Nastavitev naslednjega v vrsti</h3>
                 <div class="config-field">
                     <label>Izberi, kdo je naslednji na vrsti za kavo:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <select id="forcedNextSelect" style="flex: 1;"></select>
-                        <button class="btn-3d btn-confirm" style="font-size: 11px; padding: 6px 12px;" onclick="saveForcedNextPerson()">Nastavi</button>
-                    </div>
+                    <div id="forcedNextButtonsContainer" class="forced-next-buttons-grid"></div>
                 </div>
             </div>
 
             <div class="admin-section">
-                <h3>📊 Urejanje članov in števcev</h3>
+                <h3>📊 Urejanje članov, števcev in statusa plačila</h3>
                 <p id="adminPermissionWarning" style="font-size: 11px; color: #e74c3c; font-weight: 700; margin-bottom: 8px; display: none;">⚠️ Opomba: Spremembe so dovoljene samo uporabniku Robert.</p>
                 <div style="overflow-x: auto;">
                     <table class="member-table">
                         <thead>
                             <tr>
                                 <th>Ime</th>
-                                <th>Štev. (Ročni vpis)</th>
+                                <th style="text-align:center;">Štev.</th>
+                                <th style="text-align:center;" title="Ali je že dal za kavo v tem krogu">Že dal?</th>
                                 <th>Bilanca</th>
                                 <th>Akcije</th>
                             </tr>
@@ -675,7 +698,6 @@
     function mergeData(incoming) {
         if (!incoming) return;
         
-        // Združi ekipo, da ne izginejo naknadno dodani člani
         if (incoming.team && Array.isArray(incoming.team)) {
             let mergedTeam = [...defaultTeam];
             incoming.team.forEach(name => {
@@ -693,8 +715,8 @@
                 counts[name] = Math.max(currentVal, incomingVal);
             }
 
-            if (incoming.currentRoundPaid && incoming.currentRoundPaid[name]) {
-                currentRoundPaid[name] = true;
+            if (incoming.currentRoundPaid && incoming.currentRoundPaid[name] !== undefined) {
+                currentRoundPaid[name] = incoming.currentRoundPaid[name];
             }
         });
 
@@ -713,6 +735,9 @@
                 confirmedDateStr = incoming.confirmedDateStr;
                 confirmedPersonName = incoming.confirmedPersonName;
             }
+        }
+        if (incoming.forcedNextPerson !== undefined) {
+            forcedNextPerson = incoming.forcedNextPerson;
         }
     }
 
@@ -878,7 +903,6 @@
             const record = data.record;
             if (record) {
                 mergeData(record);
-                forcedNextPerson = record.forcedNextPerson || null;
                 if (record.gridColumns) {
                     gridColumns = record.gridColumns;
                     localStorage.setItem('gridColumns', gridColumns);
@@ -957,7 +981,6 @@
                     saveStateSnapshot();
                     if (data.team && data.team.length > 0) team = data.team;
                     mergeData(data);
-                    forcedNextPerson = data.forcedNextPerson || null;
                     if (data.gridColumns) {
                         gridColumns = data.gridColumns;
                         localStorage.setItem('gridColumns', gridColumns);
@@ -1011,7 +1034,6 @@
                     saveStateSnapshot();
                     if (data.team && data.team.length > 0) team = data.team;
                     mergeData(data);
-                    forcedNextPerson = data.forcedNextPerson || null;
                     if (data.gridColumns) {
                         gridColumns = data.gridColumns;
                         localStorage.setItem('gridColumns', gridColumns);
@@ -1041,7 +1063,6 @@
                     team = data.team;
                 }
                 mergeData(data);
-                forcedNextPerson = data.forcedNextPerson || null;
                 appTimestamp = data.timestamp || Date.now();
                 if (data.gridColumns) {
                     gridColumns = data.gridColumns;
@@ -1100,7 +1121,6 @@
                 const cloudTimestamp = record.timestamp || 0;
                 if (cloudTimestamp >= appTimestamp || !appTimestamp) {
                     mergeData(record);
-                    forcedNextPerson = record.forcedNextPerson || null;
                     if (record.gridColumns) {
                         gridColumns = record.gridColumns;
                         localStorage.setItem('gridColumns', gridColumns);
@@ -1172,7 +1192,7 @@
             const isAb = absent[name] || false;
             const isTempAb = tempAbsent[name] || false;
             const unavailable = isAb || isTempAb;
-            const isTurn = (name === scheduledPerson) && !unavailable;
+            const isTurn = (name === displayedPerson) && !unavailable;
 
             let badgeHtml = '';
             if (isAb) badgeHtml = `<span class="badge badge-absent">🌴 Odsoten</span>`;
@@ -1332,32 +1352,31 @@
         }
     }
 
-    function populateForcedNextSelect() {
-        const select = document.getElementById('forcedNextSelect');
-        if (!select) return;
-        select.innerHTML = '';
+    function renderForcedNextButtons() {
+        const container = document.getElementById('forcedNextButtonsContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const currentNext = getNextPerson();
         team.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.innerText = name;
-            if (name === getNextPerson()) opt.selected = true;
-            select.appendChild(opt);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn-forced-choice ${forcedNextPerson === name ? 'active' : (!forcedNextPerson && currentNext === name ? 'active' : '')}`;
+            btn.innerText = name;
+            btn.onclick = () => {
+                if (loggedInUser !== "Filipšek") {
+                    alert("Samo uporabnik Robert lahko nastavlja vrstni red!");
+                    return;
+                }
+                saveStateSnapshot();
+                forcedNextPerson = name;
+                logActivity(`Ročno nastavljen naslednji v vrsti prek gumba: ${forcedNextPerson}`);
+                render();
+                renderAdminData();
+                syncToCloud();
+            };
+            container.appendChild(btn);
         });
-    }
-
-    function saveForcedNextPerson() {
-        if (loggedInUser !== "Filipšek") {
-            alert("Samo uporabnik Robert lahko nastavlja vrstni red!");
-            return;
-        }
-        saveStateSnapshot();
-        const select = document.getElementById('forcedNextSelect');
-        forcedNextPerson = select.value;
-        logActivity(`Ročno nastavljen naslednji v vrsti: ${forcedNextPerson}`);
-        render();
-        renderAdminData();
-        syncToCloud();
-        alert(`Naslednji v vrsti je uspešno nastavljen na: ${forcedNextPerson}`);
     }
 
     function moveMember(index, direction) {
@@ -1385,12 +1404,25 @@
         syncToCloud();
     }
 
+    function toggleMemberPaidStatus(name) {
+        if (loggedInUser !== "Filipšek") {
+            alert("Samo uporabnik Robert lahko ureja status plačila!");
+            return;
+        }
+        saveStateSnapshot();
+        currentRoundPaid[name] = !currentRoundPaid[name];
+        logActivity(`Spremenjen status 'Že dal' za ${name}: ${currentRoundPaid[name]}`);
+        renderAdminData();
+        render();
+        syncToCloud();
+    }
+
     function renderAdminData() {
         const isFilipsek = (loggedInUser === "Filipšek");
         document.getElementById('adminPermissionWarning').style.display = isFilipsek ? 'none' : 'block';
         document.getElementById('addMemberSection').style.display = isFilipsek ? 'flex' : 'none';
 
-        populateForcedNextSelect();
+        renderForcedNextButtons();
         populateBackupSelect();
         updateActivityLogView();
 
@@ -1403,16 +1435,20 @@
         let avg = team.length > 0 ? Math.round(total / team.length) : 0;
 
         team.forEach((name, index) => {
-            const cnt = counts[name] || 0;
+            const cnt = Number(counts[name] || 0);
             const diff = cnt - avg;
             const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
             const isNext = (name === getNextPerson());
+            const isPaid = !!currentRoundPaid[name];
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${name}</b> ${isNext ? '<span style="color:#27ae60; font-size:9px; display:block;">(Naslednji)</span>' : ''}</td>
-                <td>
-                    ${isFilipsek ? `<input type="number" min="0" value="${cnt}" style="width:65px; font-size:11px; padding:3px; text-align:center; border:1px solid #ccc; border-radius:4px;" onchange="setMemberCount('${name}', this.value)">` : `<span>${cnt}x</span>`}
+                <td style="text-align:center;">
+                    ${isFilipsek ? `<input type="number" min="0" value="${cnt}" style="width:55px; font-size:11px; padding:3px; text-align:center; border:1px solid #ccc; border-radius:4px;" onchange="setMemberCount('${name}', this.value)">` : `<span>${cnt}x</span>`}
+                </td>
+                <td style="text-align:center;">
+                    <input type="checkbox" ${isPaid ? 'checked' : ''} ${isFilipsek ? '' : 'disabled'} onchange="toggleMemberPaidStatus('${name}')" style="cursor:pointer;" title="Označi, če je že dal za kavo">
                 </td>
                 <td><b style="color:${diff > 0 ? '#27ae60' : (diff < 0 ? '#e74c3c' : '#7f8c8d')}">${diffStr}</b></td>
                 <td>

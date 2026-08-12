@@ -353,7 +353,7 @@
 </head>
 <body>
 
-<!-- PRIJAVNI MODAL (VEDNO OB ZAGONU) -->
+<!-- PRIJAVNI MODAL -->
 <div class="overlay" id="loginOverlay" style="display: flex;">
     <div class="modal" style="text-align: center; max-width: 400px;">
         <h2>☕ Kdo se prijavlja?</h2>
@@ -416,7 +416,7 @@
                 <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="applyManualNext()">Nastavi</button>
             </div>
 
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov (vse v eni vrstici)</h3>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov</h3>
             <div id="adminMembersList" style="max-height: 220px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
 
             <div style="display: flex; gap: 6px; margin-bottom: 15px;" id="addMemberBox">
@@ -446,7 +446,7 @@
     let currentRoundPaid = {};
     let currentIndex = 0;
     let lastRotationDate = "";
-    let webhookUrl = localStorage.getItem('WEBHOOK_URL'] || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    let webhookUrl = localStorage.getItem('WEBHOOK_URL') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
     let loggedInUser = "";
     let appTimestamp = Date.now();
     let activityHistory = [];
@@ -463,9 +463,11 @@
 
     function init() {
         loadLocalStorage();
+        setupLoginDropdown(); // Takoj napolnimo padajoči seznam s podatki
         document.getElementById('loginOverlay').style.display = 'flex';
+        
         syncWithCloud(() => {
-            setupLoginDropdown();
+            setupLoginDropdown(); // Ponovno osvežimo, ko pridejo podatki s strežnika
             checkDateRollover();
             renderUI();
         }, true);
@@ -500,6 +502,7 @@
 
     function setupLoginDropdown() {
         const select = document.getElementById('loginSelect');
+        if (!select) return;
         select.innerHTML = '';
         team.forEach(name => {
             const opt = document.createElement('option');
@@ -511,6 +514,7 @@
 
     function handleLogin() {
         const select = document.getElementById('loginSelect');
+        if (!select) return;
         loggedInUser = select.value;
         if (!loggedInUser) return;
         document.getElementById('loggedInUserDisplay').innerText = loggedInUser;
@@ -528,7 +532,6 @@
         const todayStr = new Date().toDateString();
         document.getElementById('dateBadge').innerText = new Date().toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
 
-        // Ko nastopi nov dan, takrat premaknemo kazalec naprej in počistimo potrditve prejšnjega dne
         if (lastRotationDate && lastRotationDate !== todayStr) {
             moveToNextAvailablePerson();
             Object.keys(currentRoundPaid).forEach(k => currentRoundPaid[k] = false);
@@ -600,7 +603,7 @@
                 }
             }
             document.getElementById('syncStatus').innerText = '✅ Sinhronizirano';
-            checkDateRollover(); // Preveri datum ob vsaki sinhronizaciji
+            checkDateRollover();
             renderUI();
             if (onComplete) onComplete(true);
         })
@@ -646,10 +649,6 @@
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
             
-            // OPOMBA: Tukaj NE kličemo več moveToNextAvailablePerson(), 
-            // zato oseba ostane na glavnem zaslonu kot tisti, ki je danes dal za kavo.
-            // Rotacija na naslednjega se bo zgodila šele naslednji dan.
-            
             logActivity(`Potrjena runda za: ${active} (ostaja prikazan za danes).`);
             renderUI();
             pushToCloud((success) => {
@@ -664,7 +663,6 @@
 
         if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
             absent[active] = true;
-            // Pri "ne more" pa takoj poiščemo naslednjega za danes, ker ta očitno odpade
             moveToNextAvailablePerson();
             logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega za danes.`);
             renderUI();
@@ -683,7 +681,6 @@
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             
-            // Častitka prav tako ostane zabeležena za danes brez takojšnjega premika glavnega kazalca
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
             renderUI();
             pushToCloud((success) => {
@@ -713,22 +710,22 @@
             const isPaid = currentRoundPaid[name];
             const isAbs = absent[name];
 
-            let cardCardClass = "member-card";
+            let cardClass = "member-card";
             let statusText = "Aktiven";
             
             if (isAbs) {
-                cardCardClass += " is-absent";
+                cardClass += " is-absent";
                 statusText = "🌴 Dopust / Odsoten";
             } else if (isPaid) {
-                cardCardClass += " is-paid";
+                cardClass += " is-paid";
                 statusText = "✅ Že dal za kavo";
             } else if (isNext) {
-                cardCardClass += " is-next";
+                cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
             }
 
             const card = document.createElement('div');
-            card.className = cardCardClass;
+            card.className = cardClass;
             card.innerHTML = `
                 <div class="member-name">
                     <span>${name}</span>
@@ -788,6 +785,7 @@
 
     function setupNextDropdown() {
         const sel = document.getElementById('setNextSelect');
+        if (!sel) return;
         sel.innerHTML = '';
         team.forEach(name => {
             const opt = document.createElement('option');
@@ -812,6 +810,7 @@
 
     function renderAdminMembers() {
         const list = document.getElementById('adminMembersList');
+        if (!list) return;
         list.innerHTML = '';
 
         team.forEach((name, index) => {
@@ -884,8 +883,11 @@
     }
 
     function saveAllAdminChanges() {
-        webhookUrl = document.getElementById('webhookInput5Input') || document.getElementById('webhookInput').value;
-        localStorage.setItem('WEBHOOK_URL', webhookUrl);
+        const webhookEl = document.getElementById('webhookInput');
+        if (webhookEl) {
+            webhookUrl = webhookEl.value;
+            localStorage.setItem('WEBHOOK_URL', webhookUrl);
+        }
         
         saveLocalStorage();
         logActivity("Vse spremembe v nastavitvah shranjene.");

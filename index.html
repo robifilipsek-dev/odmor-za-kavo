@@ -7,7 +7,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <style>
-        /* CSS ostaja enak */
         :root {
             --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             --card-bg: #1e293b;
@@ -395,7 +394,6 @@
         </div>
         <div style="display: flex; gap: 6px;">
             <button class="icon-btn" onclick="syncWithCloud(null, true)" title="Osveži podatke s strežnika">🔄</button>
-            <!-- Gumb za nastavitve, ki bo viden samo Filipšku -->
             <button class="icon-btn" id="settingsBtn" onclick="openAdminModal()" title="Nastavitve" style="display: none;">⚙️</button>
         </div>
     </div>
@@ -448,7 +446,7 @@
     let currentRoundPaid = {};
     let currentIndex = 0;
     let lastRotationDate = "";
-    let webhookUrl = localStorage.getItem('WEBHOOK_URL') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    let webhookUrl = localStorage.getItem('WEBHOOK_URL'] || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
     let loggedInUser = "";
     let appTimestamp = Date.now();
     let activityHistory = [];
@@ -466,7 +464,6 @@
     function init() {
         loadLocalStorage();
         document.getElementById('loginOverlay').style.display = 'flex';
-        // Ob zagonu VEDNO prisilno prenesemo s strežnika (forceServer = true)
         syncWithCloud(() => {
             setupLoginDropdown();
             checkDateRollover();
@@ -531,6 +528,7 @@
         const todayStr = new Date().toDateString();
         document.getElementById('dateBadge').innerText = new Date().toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
 
+        // Ko nastopi nov dan, takrat premaknemo kazalec naprej in počistimo potrditve prejšnjega dne
         if (lastRotationDate && lastRotationDate !== todayStr) {
             moveToNextAvailablePerson();
             Object.keys(currentRoundPaid).forEach(k => currentRoundPaid[k] = false);
@@ -575,7 +573,6 @@
     function syncWithCloud(onComplete, forceServer = false) {
         document.getElementById('syncStatus').innerText = '⏳ Nalagam...';
         
-        // Dodan Cache-Control za izogibanje shranjevanju starih podatkov v brskalniku
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
             headers: { 
@@ -587,7 +584,6 @@
         .then(data => {
             if (data && data.record) {
                 const cloudData = data.record;
-                // Če smo rekli forceServer ALI pa so podatki v oblaku novejši, vedno prepišemo lokalne!
                 if (forceServer || !cloudData.timestamp || cloudData.timestamp > appTimestamp) {
                     if (cloudData.team) team = cloudData.team;
                     if (cloudData.counts) counts = cloudData.counts;
@@ -604,6 +600,7 @@
                 }
             }
             document.getElementById('syncStatus').innerText = '✅ Sinhronizirano';
+            checkDateRollover(); // Preveri datum ob vsaki sinhronizaciji
             renderUI();
             if (onComplete) onComplete(true);
         })
@@ -649,9 +646,11 @@
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
             
-            moveToNextAvailablePerson();
+            // OPOMBA: Tukaj NE kličemo več moveToNextAvailablePerson(), 
+            // zato oseba ostane na glavnem zaslonu kot tisti, ki je danes dal za kavo.
+            // Rotacija na naslednjega se bo zgodila šele naslednji dan.
             
-            logActivity(`Potrjena runda za: ${active}. Avtomatski premik naprej.`);
+            logActivity(`Potrjena runda za: ${active} (ostaja prikazan za danes).`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -665,8 +664,9 @@
 
         if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
             absent[active] = true;
+            // Pri "ne more" pa takoj poiščemo naslednjega za danes, ker ta očitno odpade
             moveToNextAvailablePerson();
-            logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega.`);
+            logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega za danes.`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Zabeleženo in sinhronizirano.");
@@ -683,9 +683,8 @@
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             
-            moveToNextAvailablePerson();
-            
-            logActivity(`${loggedInUser} je prostovoljno častil kavo. Avtomatski premik naprej.`);
+            // Častitka prav tako ostane zabeležena za danes brez takojšnjega premika glavnega kazalca
+            logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Hvala za častitko in sinhronizacijo!");
@@ -699,7 +698,6 @@
         document.getElementById('currentPersonName').innerText = active;
         document.getElementById('nextPersonName').innerText = next;
 
-        // Skrij ali prikaži nastavitve glede na to, kdo je prijavljen
         const settingsBtn = document.getElementById('settingsBtn');
         if (loggedInUser === "Filipšek") {
             settingsBtn.style.display = 'flex';
@@ -715,22 +713,22 @@
             const isPaid = currentRoundPaid[name];
             const isAbs = absent[name];
 
-            let cardClass = "member-card";
+            let cardCardClass = "member-card";
             let statusText = "Aktiven";
             
             if (isAbs) {
-                cardClass += " is-absent";
+                cardCardClass += " is-absent";
                 statusText = "🌴 Dopust / Odsoten";
             } else if (isPaid) {
-                cardClass += " is-paid";
+                cardCardClass += " is-paid";
                 statusText = "✅ Že dal za kavo";
             } else if (isNext) {
-                cardClass += " is-next";
+                cardCardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
             }
 
             const card = document.createElement('div');
-            card.className = cardClass;
+            card.className = cardCardClass;
             card.innerHTML = `
                 <div class="member-name">
                     <span>${name}</span>
@@ -776,8 +774,7 @@
     }
 
     function openAdminModal() {
-        if (loggedInUser !== "Filipšek") return; // Dodatna varnost
-        
+        if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
         document.getElementById('webhookInput').value = webhookUrl;
         setupNextDropdown();
@@ -887,7 +884,7 @@
     }
 
     function saveAllAdminChanges() {
-        webhookUrl = document.getElementById('webhookInput').value;
+        webhookUrl = document.getElementById('webhookInput5Input') || document.getElementById('webhookInput').value;
         localStorage.setItem('WEBHOOK_URL', webhookUrl);
         
         saveLocalStorage();

@@ -602,14 +602,14 @@
                     return;
                 }
             }
-            document.getElementById('syncStatus').innerText = '✅ V oblaku';
-            logActivity("Podatki uspešno sinhronizirani z oblakom.");
+            document.getElementById('syncStatus').innerText = '✅ Sinhronizirano';
+            logActivity("Podatki uspešno sinhronizirani s strežnikom.");
             renderUI();
             if (onComplete) onComplete(true);
         })
         .catch(() => {
             document.getElementById('syncStatus').innerText = '⚠️ Lokalno';
-            logActivity("Povezava z oblakom ni uspela. Uporabljam lokalne podatke.");
+            logActivity("Povezava s strežnikom ni uspela. Uporabljam lokalne podatke.");
             renderUI();
             if (onComplete) onComplete(false);
         });
@@ -628,7 +628,7 @@
         })
         .then(res => {
             if (res.ok) {
-                document.getElementById('syncStatus').innerText = '✅ V oblaku';
+                document.getElementById('syncStatus').innerText = '✅ Sinhronizirano';
                 if (onComplete) onComplete(true);
             } else {
                 document.getElementById('syncStatus').innerText = '⚠️ Napaka';
@@ -648,10 +648,14 @@
         if (confirm(`Ali potrjuješ, da je ${active} danes dal za kavo?`)) {
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
-            logActivity(`Potrjena runda za: ${active}`);
+            
+            // Avtomatski premik na naslednjega na vrsti
+            moveToNextAvailablePerson();
+            
+            logActivity(`Potrjena runda za: ${active}. Avtomatski premik naprej.`);
             renderUI();
             pushToCloud((success) => {
-                if (success) alert("Runda uspešno potrjena!");
+                if (success) alert("Runda uspešno potrjena in sinhronizirana!");
             });
         }
     }
@@ -666,7 +670,7 @@
             logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega.`);
             renderUI();
             pushToCloud((success) => {
-                if (success) alert("Zabeleženo. Vrstni red posodobljen.");
+                if (success) alert("Zabeleženo in sinhronizirano.");
             });
         }
     }
@@ -679,10 +683,14 @@
         if (confirm(`Ali potrjuješ, da ${loggedInUser} danes prostovoljno časti kavo?`)) {
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
-            logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
+            
+            // Avtomatski premik na naslednjega
+            moveToNextAvailablePerson();
+            
+            logActivity(`${loggedInUser} je prostovoljno častil kavo. Avtomatski premik naprej.`);
             renderUI();
             pushToCloud((success) => {
-                if (success) alert("Hvala za častitko!");
+                if (success) alert("Hvala za častitko in sinhronizacijo!");
             });
         }
     }
@@ -901,7 +909,7 @@
         saveLocalStorage();
         logActivity("Vse spremembe v nastavitvah shranjene.");
         pushToCloud((success) => {
-            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane v oblak!");
+            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane!");
             else alert("Spremembe shranjene lokalno.");
             closeAdminModal();
             renderUI();

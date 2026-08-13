@@ -202,8 +202,10 @@
             border-color: var(--info);
         }
 
-        .member-card.is-absent {
-            opacity: 0.4;
+        .member-card.is-unavailable {
+            background: rgba(239, 68, 68, 0.05);
+            border-color: var(--danger);
+            opacity: 0.7;
         }
 
         .member-name {
@@ -410,14 +412,14 @@
         <div id="settingsContent">
             <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek).</p>
             
-            <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev naslednjega</h3>
+            <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev trenutnega</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                 <select id="setNextSelect" style="margin:0; flex:1;"></select>
                 <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="applyManualNext()">Nastavi</button>
             </div>
 
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov in ročna bilanca rund</h3>
-            <div id="adminMembersList" style="max-height: 240px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov, statusov in rund</h3>
+            <div id="adminMembersList" style="max-height: 280px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
 
             <div style="display: flex; gap: 6px; margin-bottom: 15px;" id="addMemberBox">
                 <input type="text" id="newMemberNameInput" placeholder="Ime novega sodelavca" style="margin:0; flex:1;">
@@ -444,12 +446,14 @@
     let counts = {};
     let absent = {};
     let currentRoundPaid = {};
+    let dailyUnavailable = {}; 
     let currentIndex = 0;
     let lastRotationDate = "";
     let webhookUrl = localStorage.getItem('WEBHOOK_URL') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
     let loggedInUser = "";
     let appTimestamp = Date.now();
     let activityHistory = [];
+    let syncTimer = null;
 
     function logActivity(text) {
         const now = Date.now();
@@ -478,14 +482,18 @@
 
     function init() {
         loadLocalStorage();
-        setupLoginDropdown();
+        setupLoginDropdown(); 
         document.getElementById('loginOverlay').style.display = 'flex';
         
         syncWithCloud(() => {
-            setupLoginDropdown();
+            setupLoginDropdown(); 
             checkDateRollover();
             renderUI();
         }, true);
+
+        setInterval(() => {
+            syncWithCloud(null, false);
+        }, 5000);
     }
 
     function loadLocalStorage() {
@@ -493,10 +501,11 @@
             const saved = localStorage.getItem('COFFEE_APP_STATE_NEW');
             if (saved) {
                 const data = JSON.parse(saved);
-                if (data.team) team = data.team;
+                if (data.team && Array.isArray(data.team) && data.team.length > 0) team = data.team;
                 if (data.counts) counts = data.counts;
                 if (data.absent) absent = data.absent;
                 if (data.currentRoundPaid) currentRoundPaid = data.currentRoundPaid;
+                if (data.dailyUnavailable) dailyUnavailable = data.dailyUnavailable;
                 if (typeof data.currentIndex === 'number') currentIndex = data.currentIndex;
                 if (data.lastRotationDate) lastRotationDate = data.lastRotationDate;
                 if (data.timestamp) appTimestamp = data.timestamp;
@@ -511,12 +520,13 @@
             if (!(name in counts)) counts[name] = 0;
             if (!(name in absent)) absent[name] = false;
             if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
+            if (!(name in dailyUnavailable)) dailyUnavailable[name] = false;
         });
         updateActivityLogUI();
     }
 
     function saveLocalStorage() {
-        const state = { team, counts, absent, currentRoundPaid, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
+        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
         localStorage.setItem('COFFEE_APP_STATE_NEW', JSON.stringify(state));
     }
 
@@ -524,7 +534,10 @@
         const select = document.getElementById('loginSelect');
         if (!select) return;
         select.innerHTML = '';
-        team.forEach(name => {
+        
+        const activeTeam = (team && team.length > 0) ? team : DEFAULT_TEAM;
+        
+        activeTeam.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name;
             opt.innerText = name;
@@ -541,6 +554,7 @@
         document.getElementById('loginOverlay').style.display = 'none';
         logActivity(`Prijavljen uporabnik: ${loggedInUser}`);
         renderUI();
+        pushToCloud();
     }
 
     function openLoginModal() {
@@ -556,12 +570,20 @@
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
+            team.forEach(name => {
+                dailyUnavailable[name] = false;
+                currentRoundPaid[name] = false; 
+            });
             moveToNextAvailablePerson();
-            logActivity("Nov dan: Avtomatska rotacija na naslednjo osebo.");
+            logActivity("Nov dan: Avtomatska rotacija na naslednjega in ponastavitev statusov.");
             pushToCloud();
         }
         lastRotationDate = todayStr;
         saveLocalStorage();
+    }
+
+    function isPersonUnavailable(name) {
+        return absent[name] || dailyUnavailable[name];
     }
 
     function moveToNextAvailablePerson() {
@@ -570,14 +592,14 @@
         do {
             currentIndex = (currentIndex + 1) % team.length;
             attempts++;
-        } while (absent[team[currentIndex]] && attempts < team.length);
+        } while (isPersonUnavailable(team[currentIndex]) && attempts < team.length);
     }
 
     function getActivePerson() {
         if (team.length === 0) return "-";
         let idx = currentIndex % team.length;
         let safety = 0;
-        while (absent[team[idx]] && safety < team.length) {
+        while (isPersonUnavailable(team[idx]) && safety < team.length) {
             idx = (idx + 1) % team.length;
             safety++;
         }
@@ -588,27 +610,16 @@
         if (team.length <= 1) return "-";
         let idx = (currentIndex + 1) % team.length;
         let safety = 0;
-        while (absent[team[idx]] && safety < team.length) {
+        while (isPersonUnavailable(team[idx]) && safety < team.length) {
             idx = (idx + 1) % team.length;
             safety++;
         }
         return team[idx];
     }
 
-    function checkAndResetRoundIfComplete() {
-        const activeMembers = team.filter(name => !absent[name]);
-        if (activeMembers.length === 0) return;
-        
-        const allPaid = activeMembers.every(name => currentRoundPaid[name]);
-        if (allPaid) {
-            logActivity("Vsi člani so dali za kavo v tem krogu. Začenjamo nov krog!");
-            team.forEach(name => currentRoundPaid[name] = false);
-        }
-    }
-
     function syncWithCloud(onComplete, forceServer = false) {
         const syncStatus = document.getElementById('syncStatus');
-        if (syncStatus) syncStatus.innerText = '⏳ Nalagam...';
+        if (syncStatus && forceServer) syncStatus.innerText = '⏳ Nalagam...';
         
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
             method: 'GET',
@@ -622,10 +633,11 @@
             if (data && data.record) {
                 const cloudData = data.record;
                 if (forceServer || !cloudData.timestamp || cloudData.timestamp > appTimestamp) {
-                    if (cloudData.team) team = cloudData.team;
+                    if (cloudData.team && Array.isArray(cloudData.team) && cloudData.team.length > 0) team = cloudData.team;
                     if (cloudData.counts) counts = cloudData.counts;
                     if (cloudData.absent) absent = cloudData.absent;
                     if (cloudData.currentRoundPaid) currentRoundPaid = cloudData.currentRoundPaid;
+                    if (cloudData.dailyUnavailable) dailyUnavailable = cloudData.dailyUnavailable;
                     if (typeof cloudData.currentIndex === 'number') currentIndex = cloudData.currentIndex;
                     if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
                     if (cloudData.activityHistory && Array.isArray(cloudData.activityHistory)) {
@@ -634,10 +646,7 @@
                     }
                     appTimestamp = cloudData.timestamp || Date.now();
                     saveLocalStorage();
-                    logActivity("Podatki prevzeti s strežnika.");
-                } else if (!forceServer && cloudData.timestamp < appTimestamp) {
-                    pushToCloud();
-                    return;
+                    updateActivityLogUI();
                 }
             }
             if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
@@ -648,7 +657,6 @@
         })
         .catch(() => {
             if (syncStatus) syncStatus.innerText = '⚠️ Lokalno';
-            logActivity("Povezava s strežnikom ni uspela. Uporabljam lokalne podatke.");
             setupLoginDropdown();
             renderUI();
             if (onComplete) onComplete(false);
@@ -656,43 +664,47 @@
     }
 
     function pushToCloud(onComplete) {
-        appTimestamp = Date.now();
-        saveLocalStorage();
+        if (syncTimer) clearTimeout(syncTimer);
         
-        const payload = { team, counts, absent, currentRoundPaid, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
+        syncTimer = setTimeout(() => {
+            appTimestamp = Date.now();
+            saveLocalStorage();
+            
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
 
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
-            body: JSON.stringify(payload)
-        })
-        .then(res => {
-            const syncStatus = document.getElementById('syncStatus');
-            if (res.ok) {
-                if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
-                if (onComplete) onComplete(true);
-            } else {
-                if (syncStatus) syncStatus.innerText = '⚠️ Napaka';
+            fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                const syncStatus = document.getElementById('syncStatus');
+                if (res.ok) {
+                    if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
+                    if (onComplete) onComplete(true);
+                } else {
+                    if (syncStatus) syncStatus.innerText = '⚠️ Napaka';
+                    if (onComplete) onComplete(false);
+                }
+            })
+            .catch(() => {
+                const syncStatus = document.getElementById('syncStatus');
+                if (syncStatus) syncStatus.innerText = '⚠️ Brez povezave';
                 if (onComplete) onComplete(false);
-            }
-        })
-        .catch(() => {
-            const syncStatus = document.getElementById('syncStatus');
-            if (syncStatus) syncStatus.innerText = '⚠️ Brez povezave';
-            if (onComplete) onComplete(false);
-        });
+            });
+        }, 300);
     }
 
     function confirmMyCoffee() {
         const active = getActivePerson();
         if (active === "-") return;
 
-        if (confirm(`Ali potrjuješ, da je ${active} danes dal za kavo?`)) {
+        if (confirm(`Ali potrjuješ, da bo ${active} danes ob 12:00 dal za kavo?`)) {
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
+            dailyUnavailable[active] = false; 
             
-            logActivity(`Potrjena runda za: ${active} (označeno v tem krogu).`);
-            checkAndResetRoundIfComplete();
+            logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -705,13 +717,13 @@
         if (active === "-") return;
 
         if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
-            absent[active] = true;
-            moveToNextAvailablePerson();
-            logActivity(`${active} danes ne more dati za kavo. Premik na naslednjega za danes.`);
-            checkAndResetRoundIfComplete();
+            dailyUnavailable[active] = true; 
+            currentRoundPaid[active] = false;
+            logActivity(`${active} danes ne more dati za kavo.`);
+            moveToNextAvailablePerson(); 
             renderUI();
             pushToCloud((success) => {
-                if (success) alert("Zabeleženo in sinhronizirano.");
+                if (success) alert("Zabeleženo, naslednji je na vrsti.");
             });
         }
     }
@@ -724,9 +736,9 @@
         if (confirm(`Ali potrjuješ, da ${loggedInUser} danes prostovoljno časti kavo?`)) {
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
+            dailyUnavailable[loggedInUser] = false;
             
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
-            checkAndResetRoundIfComplete();
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Hvala za častitko in sinhronizacijo!");
@@ -752,8 +764,10 @@
 
         team.forEach(name => {
             const isNext = (name === active);
-            const isPaid = currentRoundPaid[name];
+            const isTodayPaid = (name === active && currentRoundPaid[name]);
             const isAbs = absent[name];
+            const isUnav = dailyUnavailable[name];
+            const userCount = counts[name] || 0;
 
             let cardClass = "member-card";
             let statusText = "Aktiven";
@@ -761,9 +775,15 @@
             if (isAbs) {
                 cardClass += " is-absent";
                 statusText = "🌴 Dopust / Odsoten";
-            } else if (isPaid) {
+            } else if (isUnav) {
+                cardClass += " is-unavailable";
+                statusText = "❌ (Danes ne more)";
+            } else if (isTodayPaid) {
                 cardClass += " is-paid";
-                statusText = "✅ Že dal za kavo";
+                statusText = "✅ Potrjeno (danes ob 12:00)";
+            } else if (userCount > 0) {
+                cardClass += " is-paid";
+                statusText = "✅ Že dal za rundo";
             } else if (isNext) {
                 cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
@@ -847,8 +867,8 @@
         const index = team.indexOf(chosen);
         if (index !== -1) {
             currentIndex = index;
-            logActivity(`Ročno nastavljen naslednji: ${chosen}`);
-            alert(`Določeno: Na vrsti je ${chosen}`);
+            logActivity(`Ročno nastavljen trenutni: ${chosen}`);
+            alert(`Določeno: Trenutni je ${chosen}`);
             renderAdminMembers();
         }
     }
@@ -861,6 +881,7 @@
         team.forEach((name, index) => {
             const isAbs = absent[name];
             const isPaid = currentRoundPaid[name];
+            const isUnav = dailyUnavailable[name];
             const userCount = counts[name] || 0;
 
             const row = document.createElement('div');
@@ -871,11 +892,16 @@
                     <span style="font-size: 11px; font-weight: bold; background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--card-border);">Rund: ${userCount}</span>
                     <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="changeCount('${name}', 1)" title="Dodaj rundo">➕</button>
                     <button class="mini-btn" style="background:#ef4444; color:white;" onclick="changeCount('${name}', -1)" title="Odštej rundo">➖</button>
+                    
+                    <button class="mini-btn" style="background: ${isUnav ? '#ef4444' : '#334155'}; color:white;" onclick="toggleDailyUnavailable('${name}')" title="Označi ali počisti, če danes ne more">
+                        ${isUnav ? '❌ Ne more' : '⭕ Lahko'}
+                    </button>
+                    <button class="mini-btn" style="background: ${isPaid ? '#3b82f6' : '#334155'}; color:white;" onclick="togglePaid('${name}')" title="Označi ali počisti, če je potrdil rundo">
+                        ${isPaid ? '✅ Potrdil' : '⭕ Ni potrdil'}
+                    </button>
+
                     <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#10b981'}; color:white;" onclick="toggleAbsent('${name}')">
                         ${isAbs ? '🌴 Odsoten' : '✅ Prisoten'}
-                    </button>
-                    <button class="mini-btn" style="background: ${isPaid ? '#3b82f6' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
-                        ${isPaid ? '✅ V krogu' : '⭕ Ni'}
                     </button>
                     <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
                     <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
@@ -899,6 +925,13 @@
 
     function togglePaid(name) {
         currentRoundPaid[name] = !currentRoundPaid[name];
+        logActivity(`Ročno spremenjen status potrditve runde za ${name}: ${currentRoundPaid[name] ? 'Potrdil' : 'Ni potrdil'}`);
+        renderAdminMembers();
+    }
+
+    function toggleDailyUnavailable(name) {
+        dailyUnavailable[name] = !dailyUnavailable[name];
+        logActivity(`Ročno spremenjen status 'ne more dati' za ${name}: ${dailyUnavailable[name]}`);
         renderAdminMembers();
     }
 
@@ -919,9 +952,10 @@
         counts[name] = 0;
         absent[name] = false;
         currentRoundPaid[name] = false;
+        dailyUnavailable[name] = false;
         input.value = '';
         logActivity(`Dodan nov član: ${name}`);
-        setupNextDropdown();
+        setupLoginDropdown();
         renderAdminMembers();
     }
 
@@ -931,8 +965,9 @@
             delete counts[name];
             delete absent[name];
             delete currentRoundPaid[name];
+            delete dailyUnavailable[name];
             logActivity(`Odstranjen član: ${name}`);
-            setupNextDropdown();
+            setupLoginDropdown();
             renderAdminMembers();
         }
     }

@@ -410,7 +410,7 @@
         </div>
 
         <div id="settingsContent">
-            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek).</p>
+            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek)[cite: 5].</p>
             
             <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev trenutnega</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
@@ -426,10 +426,31 @@
                 <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="addMember()">➕ Dodaj</button>
             </div>
 
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🌐 Teams Webhook URL</h3>
-            <input type="text" id="webhookInput" placeholder="Vnesi Webhook URL">
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🌐 Teams Webhook URL-ji in izbira aktivnega</h3>
+            
+            <!-- Webhook 1 -->
+            <div style="background: #0f172a; border: 1px solid var(--card-border); padding: 10px; border-radius: 10px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-bright);">1. Produkcijski / Glavni Webhook</label>
+                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--accent);">
+                        <input type="radio" name="activeWebhook" id="radioWebhook1" value="webhook1"> Aktiven
+                    </label>
+                </div>
+                <input type="text" id="webhook1Input" placeholder="Vnesi primarni Webhook URL" style="margin:0;">
+            </div>
 
-            <button class="btn btn-confirm" style="width: 100%; margin-top: 15px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
+            <!-- Webhook 2 (Testni) -->
+            <div style="background: #0f172a; border: 1px solid var(--card-border); padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-bright);">2. Testni Webhook URL</label>
+                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--accent);">
+                        <input type="radio" name="activeWebhook" id="radioWebhook2" value="webhook2"> Aktiven
+                    </label>
+                </div>
+                <input type="text" id="webhook2Input" placeholder="Vnesi testni Webhook URL" style="margin:0;">
+            </div>
+
+            <button class="btn btn-confirm" style="width: 100%; margin-top: 5px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
 
             <h3 style="font-size: 12px; color: var(--text); margin-top: 20px; text-transform: uppercase;">📋 Okno aktivnosti in sprememb (zadnji 3 dni)</h3>
             <div class="activity-log" id="activityLogBox">Naloženo. Čakam na akcije...</div>
@@ -449,11 +470,20 @@
     let dailyUnavailable = {}; 
     let currentIndex = 0;
     let lastRotationDate = "";
-    let webhookUrl = localStorage.getItem('WEBHOOK_URL') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    
+    // Webhook nastavitve
+    let webhook1Url = localStorage.getItem('WEBHOOK_URL_1') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
+    let webhook2Url = localStorage.getItem('WEBHOOK_URL_2') || "";
+    let activeWebhookKey = localStorage.getItem('ACTIVE_WEBHOOK') || "webhook1";
+
     let loggedInUser = "";
     let appTimestamp = Date.now();
     let activityHistory = [];
     let syncTimer = null;
+
+    function getActiveWebhookUrl() {
+        return activeWebhookKey === "webhook2" ? webhook2Url : webhook1Url;
+    }
 
     function logActivity(text) {
         const now = Date.now();
@@ -563,20 +593,33 @@
     }
 
     function checkDateRollover() {
-        const todayStr = new Date().toDateString();
+        const now = new Date();
+        const todayStr = now.toDateString();
+        const dayOfWeek = now.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
         const dateBadge = document.getElementById('dateBadge');
         if (dateBadge) {
-            dateBadge.innerText = new Date().toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
+            dateBadge.innerText = now.toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
+            const prevActivePerson = team[currentIndex % team.length];
+            const previousPaid = currentRoundPaid[prevActivePerson];
+
             team.forEach(name => {
                 dailyUnavailable[name] = false;
                 currentRoundPaid[name] = false; 
             });
-            moveToNextAvailablePerson();
-            logActivity("Nov dan: Avtomatska rotacija na naslednjega in ponastavitev statusov.");
-            pushToCloud();
+
+            if (isWeekend) {
+                logActivity("Nov dan (vikend): Razpored se ne premika naprej.");
+            } else if (!previousPaid) {
+                logActivity(`Prejšnji (${prevActivePerson}) še ni dal za kavo – razpored ostaja nespremenjen.`);
+            } else {
+                moveToNextAvailablePerson();
+                logActivity("Nov dan: Avtomatska rotacija na naslednjega in ponastavitev statusov.");
+            }
         }
         lastRotationDate = todayStr;
         saveLocalStorage();
@@ -802,8 +845,9 @@
     }
 
     function sendTeamsNotification() {
-        if (!webhookUrl) {
-            alert("Webhook URL ni nastavljen!");
+        const currentWebhook = getActiveWebhookUrl();
+        if (!currentWebhook) {
+            alert("Aktivni Webhook URL ni nastavljen!");
             return;
         }
         const active = getActivePerson();
@@ -823,14 +867,14 @@
             }]
         };
 
-        fetch(webhookUrl, {
+        fetch(currentWebhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
         .then(() => {
-            alert("Opomnik poslan v Teams!");
-            logActivity("Poslan Teams opomnik.");
+            alert(`Opomnik poslan v Teams (${activeWebhookKey === 'webhook2' ? 'Testni' : 'Glavni'})!`);
+            logActivity(`Poslan Teams opomnik (${activeWebhookKey}).`);
         })
         .catch(() => alert("Napaka pri pošiljanju v Teams."));
     }
@@ -838,7 +882,16 @@
     function openAdminModal() {
         if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
-        document.getElementById('webhookInput').value = webhookUrl;
+        
+        document.getElementById('webhook1Input').value = webhook1Url;
+        document.getElementById('webhook2Input').value = webhook2Url;
+        
+        if (activeWebhookKey === "webhook2") {
+            document.getElementById('radioWebhook2').checked = true;
+        } else {
+            document.getElementById('radioWebhook1').checked = true;
+        }
+
         setupNextDropdown();
         renderAdminMembers();
     }
@@ -918,6 +971,7 @@
         renderAdminMembers();
     }
 
+    // Popravljen oklepaj v funkciji toggleAbsent
     function toggleAbsent(name) {
         absent[name] = !absent[name];
         renderAdminMembers();
@@ -973,11 +1027,20 @@
     }
 
     function saveAllAdminChanges() {
-        const webhookEl = document.getElementById('webhookInput');
-        if (webhookEl) {
-            webhookUrl = webhookEl.value;
-            localStorage.setItem('WEBHOOK_URL', webhookUrl);
+        const w1El = document.getElementById('webhook1Input');
+        const w2El = document.getElementById('webhook2Input');
+        if (w1El) webhook1Url = w1El.value;
+        if (w2El) webhook2Url = w2El.value;
+
+        if (document.getElementById('radioWebhook2').checked) {
+            activeWebhookKey = "webhook2";
+        } else {
+            activeWebhookKey = "webhook1";
         }
+
+        localStorage.setItem('WEBHOOK_URL_1', webhook1Url);
+        localStorage.setItem('WEBHOOK_URL_2', webhook2Url);
+        localStorage.setItem('ACTIVE_WEBHOOK', activeWebhookKey);
         
         saveLocalStorage();
         logActivity("Vse spremembe v nastavitvah shranjene.");

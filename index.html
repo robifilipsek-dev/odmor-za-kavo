@@ -373,7 +373,7 @@
     </div>
 
     <div class="status-box">
-        <span id="statusSubtitle">Danes je na vrsti za kavo:</span>
+        <span id="statusSubtitle">Danes časti kavo:</span>
         <strong id="currentPersonName">-</strong>
         <div class="action-buttons">
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
@@ -425,8 +425,8 @@
 
 <script>
     const DEFAULT_TEAM = ["Filipšek", "Fidler", "Pirnat", "Oprešnik", "Govedić", "Fendre", "Šetina", "Vrtačnik", "Gračner", "Rihter"];
-    const JSONBIN_BIN_ID = "6a635852da38895dfe89ba53";
-    const JSONBIN_API_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
+    const JSONBIN_ID = "6a635852da38895dfe89ba53";
+    const JSONBIN_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
 
     let team = [...DEFAULT_TEAM];
     let counts = {};
@@ -594,11 +594,11 @@
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
-            advanceToNextEligiblePerson();
             team.forEach(name => {
-                dailyUnavailable[name] = false;
+                dailyUnavailable[name] = false; 
                 currentRoundPaid[name] = false; 
             });
+            advanceToNextEligiblePerson();
             logActivity("Nov dan: Indeks premaknjen naprej, statusi ponastavljeni.");
         }
         lastRotationDate = todayStr;
@@ -606,7 +606,7 @@
     }
 
     function isPersonValid(name) {
-        return !absent[name] && !dailyUnavailable[name] && !currentRoundPaid[name];
+        return !absent[name] && !dailyUnavailable[name];
     }
 
     function advanceToNextEligiblePerson() {
@@ -633,10 +633,10 @@
         const syncStatus = document.getElementById('syncStatus');
         if (syncStatus && forceServer) syncStatus.innerText = '⏳ Nalagam...';
         
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
             method: 'GET',
             headers: { 
-                'X-Master-Key': JSONBIN_API_KEY,
+                'X-Master-Key': JSONBIN_KEY,
                 'Cache-Control': 'no-cache'
             }
         })
@@ -684,9 +684,9 @@
             
             const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
 
-            fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+            fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
                 body: JSON.stringify(payload)
             })
             .then(res => {
@@ -717,9 +717,7 @@
             currentRoundPaid[active] = true;
             dailyUnavailable[active] = false; 
             
-            advanceToNextEligiblePerson();
-
-            logActivity(`Potrjeno za danes: ${active} daje ob 12:00. Indeks premaknjen naprej.`);
+            logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -779,26 +777,30 @@
 
         team.forEach(name => {
             const isNext = (name === active);
-            const isTodayPaid = (name === active && currentRoundPaid[name]);
+            const isTodayPaid = currentRoundPaid[name];
             const isAbs = absent[name];
             const isUnav = dailyUnavailable[name];
-            const userCount = counts[name] || 0;
 
             let cardClass = "member-card";
-            let statusText = "Aktiven";
+            let statusText = "";
             
             if (isAbs) {
                 cardClass += " is-absent";
                 statusText = "🌴 Dopust / Odsoten";
             } else if (isUnav) {
                 cardClass += " is-unavailable";
-                statusText = "❌ (Danes ne more)";
-            } else if (isTodayPaid || userCount > 0 && currentRoundPaid[name]) {
+                statusText = "❌ Danes ne more";
+            } else if (name === active && isTodayPaid) {
+                cardClass += " is-paid";
+                statusText = "✅ Potrjena runda ob 12:00";
+            } else if (isTodayPaid) {
                 cardClass += " is-paid";
                 statusText = "✅ Že dal";
             } else if (isNext) {
                 cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
+            } else {
+                statusText = "";
             }
 
             const card = document.createElement('div');
@@ -855,7 +857,7 @@
                     <div style="display:flex; gap:4px; flex-wrap: wrap; width: 100%; justify-content: space-between;">
                         <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="setAsNext(${index})" title="Določi kot naslednjega">👉 Naslednji</button>
                         <button class="mini-btn" style="background: ${isPaid ? '#10b981' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
-                            ${isPaid ? '✅ Že dal za kavo' : '⭕ Že dal za kavo'}
+                            ${isPaid ? '✅ Že dal' : '⭕ Že dal'}
                         </button>
                         <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#334155'}; color:white;" onclick="toggleAbsent('${name}')">
                             ${isAbs ? '🌴 Dopust' : '⭕ Dopust'}
@@ -931,7 +933,7 @@
         } else {
             counts[name] = Math.max(0, (counts[name] || 1) - 1);
         }
-        logActivity(`Spremenjen status 'Že dal za kavo' za ${name}`);
+        logActivity(`Spremenjen status 'Že dal' za ${name}`);
         renderAdminMembers();
     }
 

@@ -112,7 +112,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            margin-bottom: 0;
+            margin-bottom: 10px;
         }
 
         .btn {
@@ -149,15 +149,16 @@
         .btn-sponsor {
             background: var(--info);
             color: white;
+            grid-column: span 2;
         }
         .btn-sponsor:hover { background: #60a5fa; }
 
-        .btn-teams {
-            background: #4f46e5;
-            color: white;
+        .btn-undo {
+            background: #334155;
+            color: var(--text-bright);
             grid-column: span 2;
         }
-        .btn-teams:hover { background: #6366f1; }
+        .btn-undo:hover { background: #475569; }
 
         .members-grid {
             display: grid;
@@ -176,6 +177,7 @@
             justify-content: space-between;
             min-height: 60px;
             box-sizing: border-box;
+            transition: all 0.2s ease;
         }
 
         .member-card.is-next {
@@ -192,6 +194,13 @@
             background: rgba(239, 68, 68, 0.05);
             border-color: var(--danger);
             opacity: 0.7;
+        }
+
+        .member-card.is-absent {
+            background: rgba(15, 23, 42, 0.6);
+            border-style: dashed;
+            opacity: 0.4;
+            filter: grayscale(80%);
         }
 
         .member-name {
@@ -272,7 +281,7 @@
 
         .modal h2 { margin-top: 0; color: var(--text-bright); font-size: 18px; }
         
-        select, input[type="text"], input[type="password"] {
+        select, input[type="text"] {
             width: 100%;
             padding: 10px 12px;
             border-radius: 10px;
@@ -288,23 +297,26 @@
         .admin-member-row {
             background: #0f172a;
             border: 1px solid var(--card-border);
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-bottom: 8px;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .admin-member-name {
-            font-weight: 700;
-            font-size: 13px;
-            color: var(--text-bright);
+        .admin-member-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-member-name-input {
             flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin: 0 !important;
+            padding: 6px 10px;
+            font-size: 12px;
         }
 
         .admin-controls-inline {
@@ -312,7 +324,6 @@
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
-            justify-content: flex-end;
         }
 
         .mini-btn {
@@ -368,7 +379,7 @@
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
             <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
             <button class="btn btn-sponsor" onclick="sponsorCoffee()">⭐ Jaz častim danes</button>
-            <button class="btn btn-teams" onclick="sendTeamsNotification()">📢 Pošlji opomnik v Teams</button>
+            <button class="btn btn-undo" onclick="undoLastAction()">↩️ Razveljavi zadnjo akcijo (Undo)</button>
         </div>
     </div>
 
@@ -395,44 +406,13 @@
         </div>
 
         <div id="settingsContent">
-            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek).</p>
             
-            <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev trenutnega</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                <select id="setNextSelect" style="margin:0; flex:1;"></select>
-                <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="applyManualNext()">Nastavi</button>
-            </div>
-
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">👥 Upravljanje članov, statusov in rund</h3>
-            <div id="adminMembersList" style="max-height: 280px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">Urejanje podatkov</h3>
+            <div id="adminMembersList" style="max-height: 320px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
 
             <div style="display: flex; gap: 6px; margin-bottom: 15px;" id="addMemberBox">
                 <input type="text" id="newMemberNameInput" placeholder="Ime novega sodelavca" style="margin:0; flex:1;">
                 <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="addMember()">➕ Dodaj</button>
-            </div>
-
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🌐 Teams Webhook URL-ji in izbira aktivnega</h3>
-            
-            <!-- Webhook 1 -->
-            <div style="background: #0f172a; border: 1px solid var(--card-border); padding: 10px; border-radius: 10px; margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label style="font-size: 12px; font-weight: bold; color: var(--text-bright);">1. Produkcijski / Glavni Webhook</label>
-                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--accent);">
-                        <input type="radio" name="activeWebhook" id="radioWebhook1" value="webhook1"> Aktiven
-                    </label>
-                </div>
-                <input type="text" id="webhook1Input" placeholder="Vnesi primarni Webhook URL" style="margin:0;">
-            </div>
-
-            <!-- Webhook 2 (Testni) -->
-            <div style="background: #0f172a; border: 1px solid var(--card-border); padding: 10px; border-radius: 10px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label style="font-size: 12px; font-weight: bold; color: var(--text-bright);">2. Testni Webhook URL</label>
-                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--accent);">
-                        <input type="radio" name="activeWebhook" id="radioWebhook2" value="webhook2"> Aktiven
-                    </label>
-                </div>
-                <input type="text" id="webhook2Input" placeholder="Vnesi testni Webhook URL" style="margin:0;">
             </div>
 
             <button class="btn btn-confirm" style="width: 100%; margin-top: 5px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
@@ -456,18 +436,45 @@
     let currentIndex = 0;
     let lastRotationDate = "";
     
-    // Webhook nastavitve
-    let webhook1Url = localStorage.getItem('WEBHOOK_URL_1') || "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/3ddb29ff361a42f0a4d8d4957b257f96/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PwaKLIByfH0ihf8B-PEwJ6S5VkruKD67XZuLHBjpouk";
-    let webhook2Url = localStorage.getItem('WEBHOOK_URL_2') || "";
-    let activeWebhookKey = localStorage.getItem('ACTIVE_WEBHOOK') || "webhook1";
-
     let loggedInUser = "";
     let appTimestamp = Date.now();
     let activityHistory = [];
     let syncTimer = null;
+    
+    let historyStack = [];
 
-    function getActiveWebhookUrl() {
-        return activeWebhookKey === "webhook2" ? webhook2Url : webhook1Url;
+    function saveStateSnapshot() {
+        const snapshot = {
+            team: [...team],
+            counts: { ...counts },
+            absent: { ...absent },
+            currentRoundPaid: { ...currentRoundPaid },
+            dailyUnavailable: { ...dailyUnavailable },
+            currentIndex: currentIndex,
+            lastRotationDate: lastRotationDate
+        };
+        historyStack.push(snapshot);
+        if (historyStack.length > 20) historyStack.shift();
+    }
+
+    function undoLastAction() {
+        if (historyStack.length === 0) {
+            alert("Ni prejšnjih dejanj za povrnitev.");
+            return;
+        }
+        const previousState = historyStack.pop();
+        team = previousState.team;
+        counts = previousState.counts;
+        absent = previousState.absent;
+        currentRoundPaid = previousState.currentRoundPaid;
+        dailyUnavailable = previousState.dailyUnavailable;
+        currentIndex = previousState.currentIndex;
+        lastRotationDate = previousState.lastRotationDate;
+
+        logActivity("Izveden Undo (povratek prejšnjega stanja).");
+        renderUI();
+        pushToCloud();
+        alert("Stanje je bilo uspešno povrnjeno!");
     }
 
     function logActivity(text) {
@@ -513,7 +520,7 @@
 
     function loadLocalStorage() {
         try {
-            const saved = localStorage.getItem('COFFEE_APP_STATE_NEW');
+            const saved = localStorage.getItem('COFFEE_APP_STATE_NO_TEAMS');
             if (saved) {
                 const data = JSON.parse(saved);
                 if (data.team && Array.isArray(data.team) && data.team.length > 0) team = data.team;
@@ -542,7 +549,7 @@
 
     function saveLocalStorage() {
         const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
-        localStorage.setItem('COFFEE_APP_STATE_NEW', JSON.stringify(state));
+        localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
     function setupLoginDropdown() {
@@ -598,10 +605,6 @@
         saveLocalStorage();
     }
 
-    function isPersonUnavailable(name) {
-        return absent[name] || dailyUnavailable[name];
-    }
-
     function isPersonValid(name) {
         return !absent[name] && !dailyUnavailable[name] && !currentRoundPaid[name];
     }
@@ -617,7 +620,6 @@
 
     function getActivePerson() {
         if (team.length === 0) return "-";
-        
         for (let i = 0; i < team.length; i++) {
             let idx = (currentIndex + i) % team.length;
             if (isPersonValid(team[idx])) {
@@ -705,39 +707,12 @@
         }, 300);
     }
 
-    // Funkcija za splošno pošiljanje obvestil v Teams s poljubnim besedilom
-    function sendTeamsMessage(messageText) {
-        const currentWebhook = getActiveWebhookUrl();
-        if (!currentWebhook) return;
-
-        const payload = {
-            "type": "message",
-            "attachments": [{
-                "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.2",
-                    "body": [
-                        { "type": "TextBlock", "text": "☕ ODMOR ZA KAVO", "weight": "Bolder", "size": "Medium", "color": "Accent" },
-                        { "type": "TextBlock", "text": messageText, "wrap": true }
-                    ]
-                }
-            }]
-        };
-
-        fetch(currentWebhook, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).catch(() => {});
-    }
-
     function confirmMyCoffee() {
         const active = getActivePerson();
         if (active === "-") return;
 
         if (confirm(`Ali potrjuješ, da bo ${active} danes ob 12:00 dal za kavo?`)) {
+            saveStateSnapshot();
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
             dailyUnavailable[active] = false; 
@@ -745,10 +720,6 @@
             advanceToNextEligiblePerson();
 
             logActivity(`Potrjeno za danes: ${active} daje ob 12:00. Indeks premaknjen naprej.`);
-            
-            // Avtomatsko pošiljanje obvestila v Teams
-            sendTeamsMessage(`☕ **${active}** je potrdil, da danes časti kavo.`);
-
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -761,13 +732,10 @@
         if (active === "-") return;
 
         if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
+            saveStateSnapshot();
             dailyUnavailable[active] = true; 
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
-            
-            // Avtomatsko pošiljanje obvestila v Teams
-            sendTeamsMessage(`⚠️ **${active}** danes ne more dati za kavo.`);
-
             advanceToNextEligiblePerson(); 
             renderUI();
             pushToCloud((success) => {
@@ -782,15 +750,12 @@
             return;
         }
         if (confirm(`Ali potrjuješ, da ${loggedInUser} danes prostovoljno časti kavo?`)) {
+            saveStateSnapshot();
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             dailyUnavailable[loggedInUser] = false;
             
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
-            
-            // Avtomatsko pošiljanje obvestila v Teams
-            sendTeamsMessage(`🌟 Danes časti: **${loggedInUser}**`);
-
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Hvala za častitko in sinhronizacijo!");
@@ -828,12 +793,9 @@
             } else if (isUnav) {
                 cardClass += " is-unavailable";
                 statusText = "❌ (Danes ne more)";
-            } else if (isTodayPaid) {
+            } else if (isTodayPaid || userCount > 0 && currentRoundPaid[name]) {
                 cardClass += " is-paid";
-                statusText = "✅ Potrjeno (danes ob 12:00)";
-            } else if (userCount > 0) {
-                cardClass += " is-paid";
-                statusText = "✅ Že dal za rundo";
+                statusText = "✅ Že dal";
             } else if (isNext) {
                 cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
@@ -851,86 +813,15 @@
         });
     }
 
-    function sendTeamsNotification() {
-        const currentWebhook = getActiveWebhookUrl();
-        if (!currentWebhook) {
-            alert("Aktivni Webhook URL ni nastavljen!");
-            return;
-        }
-        const active = getActivePerson();
-        const payload = {
-            "type": "message",
-            "attachments": [{
-                "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.2",
-                    "body": [
-                        { "type": "TextBlock", "text": "☕ ODMOR ZA KAVO", "weight": "Bolder", "size": "Medium", "color": "Accent" },
-                        { "type": "TextBlock", "text": `Čas je za kavo! Danes je po razporedu na vrsti: **${active}**`, "wrap": true }
-                    ]
-                }
-            }]
-        };
-
-        fetch(currentWebhook, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(() => {
-            alert(`Opomnik poslan v Teams (${activeWebhookKey === 'webhook2' ? 'Testni' : 'Glavni'})!`);
-            logActivity(`Poslan Teams opomnik (${activeWebhookKey}).`);
-        })
-        .catch(() => alert("Napaka pri pošiljanju v Teams."));
-    }
-
     function openAdminModal() {
         if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
-        
-        document.getElementById('webhook1Input').value = webhook1Url;
-        document.getElementById('webhook2Input').value = webhook2Url;
-        
-        if (activeWebhookKey === "webhook2") {
-            document.getElementById('radioWebhook2').checked = true;
-        } else {
-            document.getElementById('radioWebhook1').checked = true;
-        }
-
-        setupNextDropdown();
         renderAdminMembers();
     }
 
     function closeAdminModal() {
         document.getElementById('adminModal').style.display = 'none';
         renderUI();
-    }
-
-    function setupNextDropdown() {
-        const sel = document.getElementById('setNextSelect');
-        if (!sel) return;
-        sel.innerHTML = '';
-        team.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.innerText = name;
-            if (name === getActivePerson()) opt.selected = true;
-            sel.appendChild(opt);
-        });
-    }
-
-    function applyManualNext() {
-        const sel = document.getElementById('setNextSelect');
-        const chosen = sel.value;
-        const index = team.indexOf(chosen);
-        if (index !== -1) {
-            currentIndex = index;
-            logActivity(`Ročno nastavljen trenutni: ${chosen}`);
-            alert(`Določeno: Trenutni je ${chosen}`);
-            renderAdminMembers();
-        }
     }
 
     function renderAdminMembers() {
@@ -947,25 +838,31 @@
             const row = document.createElement('div');
             row.className = 'admin-member-row';
             row.innerHTML = `
-                <div class="admin-member-name">${name}</div>
-                <div class="admin-controls-inline">
-                    <span style="font-size: 11px; font-weight: bold; background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--card-border);">Rund: ${userCount}</span>
-                    <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="changeCount('${name}', 1)" title="Dodaj rundo">➕</button>
-                    <button class="mini-btn" style="background:#ef4444; color:white;" onclick="changeCount('${name}', -1)" title="Odštej rundo">➖</button>
-                    
-                    <button class="mini-btn" style="background: ${isUnav ? '#ef4444' : '#334155'}; color:white;" onclick="toggleDailyUnavailable('${name}')" title="Označi ali počisti, če danes ne more">
-                        ${isUnav ? '❌ Ne more' : '⭕ Lahko'}
-                    </button>
-                    <button class="mini-btn" style="background: ${isPaid ? '#3b82f6' : '#334155'}; color:white;" onclick="togglePaid('${name}')" title="Označi ali počisti, če je potrdil rundo">
-                        ${isPaid ? '✅ Potrdil' : '⭕ Ni potrdil'}
-                    </button>
-
-                    <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#10b981'}; color:white;" onclick="toggleAbsent('${name}')">
-                        ${isAbs ? '🌴 Odsoten' : '✅ Prisoten'}
-                    </button>
-                    <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
-                    <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
-                    <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️</button>
+                <div class="admin-member-top">
+                    <input type="text" class="admin-member-name-input" id="nameInput_${index}" value="${name}" placeholder="Ime člana">
+                    <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="renameMember(${index})">✏️ Preimenuj</button>
+                    <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️ Odstrani</button>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding-top: 4px;">
+                    <span style="font-size: 11px; font-weight: bold; color: var(--text);">Število rund:</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <button class="mini-btn" style="background:#334155; color:white; padding: 4px 8px;" onclick="changeCount('${name}', -1)">➖</button>
+                        <span id="countDisplay_${index}" style="font-size: 12px; font-weight: bold; min-width: 24px; text-align: center; color: var(--text-bright);">${userCount}</span>
+                        <button class="mini-btn" style="background:#334155; color:white; padding: 4px 8px;" onclick="changeCount('${name}', 1)">➕</button>
+                    </div>
+                </div>
+                <div class="admin-controls-inline" style="justify-content: space-between; border-top: 1px solid var(--card-border); margin-top: 4px; padding-top: 6px;">
+                    <div style="display:flex; gap:4px; flex-wrap: wrap; width: 100%; justify-content: space-between;">
+                        <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="setAsNext(${index})" title="Določi kot naslednjega">👉 Naslednji</button>
+                        <button class="mini-btn" style="background: ${isPaid ? '#10b981' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
+                            ${isPaid ? '✅ Že dal za kavo' : '⭕ Že dal za kavo'}
+                        </button>
+                        <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#334155'}; color:white;" onclick="toggleAbsent('${name}')">
+                            ${isAbs ? '🌴 Dopust' : '⭕ Dopust'}
+                        </button>
+                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
+                        <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
+                    </div>
                 </div>
             `;
             list.appendChild(row);
@@ -973,31 +870,75 @@
     }
 
     function changeCount(name, amount) {
-        counts[name] = Math.max(0, (counts[name] || 0) + amount);
-        logActivity(`Ročno spremenjena bilanca za ${name}: ${counts[name]} rund.`);
+        saveStateSnapshot();
+        const current = counts[name] || 0;
+        const updated = Math.max(0, current + amount);
+        counts[name] = updated;
+        logActivity(`Spremenjeno število rund za ${name}: ${current} -> ${updated}`);
+        renderAdminMembers();
+    }
+
+    function setAsNext(index) {
+        saveStateSnapshot();
+        currentIndex = index;
+        logActivity(`Ročno nastavljen naslednji član: ${team[index]}`);
+        renderAdminMembers();
+        alert(`Član ${team[index]} je sedaj nastavljen kot naslednji na vrsti!`);
+    }
+
+    function renameMember(index) {
+        const input = document.getElementById(`nameInput_${index}`);
+        const newName = input.value.trim();
+        const oldName = team[index];
+        if (!newName || newName === oldName) return;
+        if (team.includes(newName)) {
+            alert("Ime že obstaja v ekipi!");
+            return;
+        }
+
+        saveStateSnapshot();
+        team[index] = newName;
+        
+        counts[newName] = counts[oldName] || 0;
+        delete counts[oldName];
+        
+        absent[newName] = absent[oldName] || false;
+        delete absent[oldName];
+        
+        currentRoundPaid[newName] = currentRoundPaid[oldName] || false;
+        delete currentRoundPaid[oldName];
+        
+        dailyUnavailable[newName] = dailyUnavailable[oldName] || false;
+        delete dailyUnavailable[oldName];
+
+        logActivity(`Preimenovan član: ${oldName} -> ${newName}`);
+        setupLoginDropdown();
         renderAdminMembers();
     }
 
     function toggleAbsent(name) {
+        saveStateSnapshot();
         absent[name] = !absent[name];
+        logActivity(`Spremenjen status dopusta/odsotnosti za ${name}: ${absent[name]}`);
         renderAdminMembers();
     }
 
     function togglePaid(name) {
+        saveStateSnapshot();
         currentRoundPaid[name] = !currentRoundPaid[name];
-        logActivity(`Ročno spremenjen status potrditve runde za ${name}: ${currentRoundPaid[name] ? 'Potrdil' : 'Ni potrdil'}`);
-        renderAdminMembers();
-    }
-
-    function toggleDailyUnavailable(name) {
-        dailyUnavailable[name] = !dailyUnavailable[name];
-        logActivity(`Ročno spremenjen status 'ne more dati' za ${name}: ${dailyUnavailable[name]}`);
+        if(currentRoundPaid[name]) {
+            counts[name] = (counts[name] || 0) + 1;
+        } else {
+            counts[name] = Math.max(0, (counts[name] || 1) - 1);
+        }
+        logActivity(`Spremenjen status 'Že dal za kavo' za ${name}`);
         renderAdminMembers();
     }
 
     function moveMember(index, direction) {
         const newIdx = index + direction;
         if (newIdx < 0 || newIdx >= team.length) return;
+        saveStateSnapshot();
         const temp = team[index];
         team[index] = team[newIdx];
         team[newIdx] = temp;
@@ -1008,6 +949,7 @@
         const input = document.getElementById('newMemberNameInput');
         const name = input.value.trim();
         if (!name || team.includes(name)) return;
+        saveStateSnapshot();
         team.push(name);
         counts[name] = 0;
         absent[name] = false;
@@ -1021,6 +963,7 @@
 
     function removeMember(name) {
         if (confirm(`Odstrani člana ${name}?`)) {
+            saveStateSnapshot();
             team = team.filter(m => m !== name);
             delete counts[name];
             delete absent[name];
@@ -1033,21 +976,6 @@
     }
 
     function saveAllAdminChanges() {
-        const w1El = document.getElementById('webhook1Input');
-        const w2El = document.getElementById('webhook2Input');
-        if (w1El) webhook1Url = w1El.value;
-        if (w2El) webhook2Url = w2El.value;
-
-        if (document.getElementById('radioWebhook2').checked) {
-            activeWebhookKey = "webhook2";
-        } else {
-            activeWebhookKey = "webhook1";
-        }
-
-        localStorage.setItem('WEBHOOK_URL_1', webhook1Url);
-        localStorage.setItem('WEBHOOK_URL_2', webhook2Url);
-        localStorage.setItem('ACTIVE_WEBHOOK', activeWebhookKey);
-        
         saveLocalStorage();
         logActivity("Vse spremembe v nastavitvah shranjene.");
         pushToCloud((success) => {

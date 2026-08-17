@@ -104,29 +104,15 @@
             font-size: 26px;
             color: var(--text-bright);
             display: block;
-            margin: 8px 0 5px 0;
+            margin: 8px 0 15px 0;
             font-weight: 900;
-        }
-
-        .next-preview {
-            font-size: 12px;
-            color: var(--text);
-            margin-bottom: 15px;
-        }
-
-        .next-preview strong {
-            font-size: 13px;
-            color: var(--info);
-            display: inline;
-            margin: 0;
-            font-weight: 700;
         }
 
         .action-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 0;
         }
 
         .btn {
@@ -378,7 +364,6 @@
     <div class="status-box">
         <span id="statusSubtitle">Danes je na vrsti za kavo:</span>
         <strong id="currentPersonName">-</strong>
-        <div class="next-preview">Naslednji na vrsti: <strong id="nextPersonName">-</strong></div>
         <div class="action-buttons">
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
             <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
@@ -410,7 +395,7 @@
         </div>
 
         <div id="settingsContent">
-            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek)[cite: 5].</p>
+            <p style="color: var(--info); font-size: 12px; font-weight: bold; margin-bottom: 15px;">👤 Nastavitve so omogočene ekskluzivno za administratorja (Filipšek).</p>
             
             <h3 style="font-size: 13px; color: var(--text-bright); margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">🎯 Ročna določitev trenutnega</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
@@ -595,8 +580,6 @@
     function checkDateRollover() {
         const now = new Date();
         const todayStr = now.toDateString();
-        const dayOfWeek = now.getDay();
-        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
         const dateBadge = document.getElementById('dateBadge');
         if (dateBadge) {
@@ -604,22 +587,14 @@
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
-            const prevActivePerson = team[currentIndex % team.length];
-            const previousPaid = currentRoundPaid[prevActivePerson];
-
+            // Ob novem dnevu premaknemo indeks na naslednjo osebo, ki še ni dala za kavo,
+            // ter počistimo dnevne statuse in status potrditve za prejšnji dan.
+            advanceToNextEligiblePerson();
             team.forEach(name => {
                 dailyUnavailable[name] = false;
                 currentRoundPaid[name] = false; 
             });
-
-            if (isWeekend) {
-                logActivity("Nov dan (vikend): Razpored se ne premika naprej.");
-            } else if (!previousPaid) {
-                logActivity(`Prejšnji (${prevActivePerson}) še ni dal za kavo – razpored ostaja nespremenjen.`);
-            } else {
-                moveToNextAvailablePerson();
-                logActivity("Nov dan: Avtomatska rotacija na naslednjega in ponastavitev statusov.");
-            }
+            logActivity("Nov dan: Indeks premaknjen naprej, statusi ponastavljeni.");
         }
         lastRotationDate = todayStr;
         saveLocalStorage();
@@ -629,35 +604,31 @@
         return absent[name] || dailyUnavailable[name];
     }
 
-    function moveToNextAvailablePerson() {
+    function isPersonValid(name) {
+        // Oseba je veljavna, če NI odsotna, NI nedosegljiva danes IN še NI plačala v tem krogu
+        return !absent[name] && !dailyUnavailable[name] && !currentRoundPaid[name];
+    }
+
+    function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
         let attempts = 0;
         do {
             currentIndex = (currentIndex + 1) % team.length;
             attempts++;
-        } while (isPersonUnavailable(team[currentIndex]) && attempts < team.length);
+        } while (!isPersonValid(team[currentIndex]) && attempts < team.length);
     }
 
     function getActivePerson() {
         if (team.length === 0) return "-";
-        let idx = currentIndex % team.length;
-        let safety = 0;
-        while (isPersonUnavailable(team[idx]) && safety < team.length) {
-            idx = (idx + 1) % team.length;
-            safety++;
+        
+        // Iščemo od trenutnega indeksa naprej primerno osebo
+        for (let i = 0; i < team.length; i++) {
+            let idx = (currentIndex + i) % team.length;
+            if (isPersonValid(team[idx])) {
+                return team[idx];
+            }
         }
-        return team[idx];
-    }
-
-    function getNextPerson() {
-        if (team.length <= 1) return "-";
-        let idx = (currentIndex + 1) % team.length;
-        let safety = 0;
-        while (isPersonUnavailable(team[idx]) && safety < team.length) {
-            idx = (idx + 1) % team.length;
-            safety++;
-        }
-        return team[idx];
+        return team[currentIndex % team.length]; // Fallback
     }
 
     function syncWithCloud(onComplete, forceServer = false) {
@@ -747,7 +718,10 @@
             currentRoundPaid[active] = true;
             dailyUnavailable[active] = false; 
             
-            logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
+            // Ko trenutni potrdi rundo, premaknemo indeks na naslednjo veljavno osebo za prihodnji dan
+            advanceToNextEligiblePerson();
+
+            logActivity(`Potrjeno za danes: ${active} daje ob 12:00. Indeks premaknjen naprej.`);
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -763,7 +737,7 @@
             dailyUnavailable[active] = true; 
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
-            moveToNextAvailablePerson(); 
+            advanceToNextEligiblePerson(); 
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Zabeleženo, naslednji je na vrsti.");
@@ -791,9 +765,7 @@
 
     function renderUI() {
         const active = getActivePerson();
-        const next = getNextPerson();
         document.getElementById('currentPersonName').innerText = active;
-        document.getElementById('nextPersonName').innerText = next;
 
         const settingsBtn = document.getElementById('settingsBtn');
         if (loggedInUser === "Filipšek") {
@@ -971,7 +943,6 @@
         renderAdminMembers();
     }
 
-    // Popravljen oklepaj v funkciji toggleAbsent
     function toggleAbsent(name) {
         absent[name] = !absent[name];
         renderAdminMembers();

@@ -587,8 +587,6 @@
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
-            // Ob novem dnevu premaknemo indeks na naslednjo osebo, ki še ni dala za kavo,
-            // ter počistimo dnevne statuse in status potrditve za prejšnji dan.
             advanceToNextEligiblePerson();
             team.forEach(name => {
                 dailyUnavailable[name] = false;
@@ -605,7 +603,6 @@
     }
 
     function isPersonValid(name) {
-        // Oseba je veljavna, če NI odsotna, NI nedosegljiva danes IN še NI plačala v tem krogu
         return !absent[name] && !dailyUnavailable[name] && !currentRoundPaid[name];
     }
 
@@ -621,14 +618,13 @@
     function getActivePerson() {
         if (team.length === 0) return "-";
         
-        // Iščemo od trenutnega indeksa naprej primerno osebo
         for (let i = 0; i < team.length; i++) {
             let idx = (currentIndex + i) % team.length;
             if (isPersonValid(team[idx])) {
                 return team[idx];
             }
         }
-        return team[currentIndex % team.length]; // Fallback
+        return team[currentIndex % team.length];
     }
 
     function syncWithCloud(onComplete, forceServer = false) {
@@ -709,6 +705,34 @@
         }, 300);
     }
 
+    // Funkcija za splošno pošiljanje obvestil v Teams s poljubnim besedilom
+    function sendTeamsMessage(messageText) {
+        const currentWebhook = getActiveWebhookUrl();
+        if (!currentWebhook) return;
+
+        const payload = {
+            "type": "message",
+            "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [
+                        { "type": "TextBlock", "text": "☕ ODMOR ZA KAVO", "weight": "Bolder", "size": "Medium", "color": "Accent" },
+                        { "type": "TextBlock", "text": messageText, "wrap": true }
+                    ]
+                }
+            }]
+        };
+
+        fetch(currentWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(() => {});
+    }
+
     function confirmMyCoffee() {
         const active = getActivePerson();
         if (active === "-") return;
@@ -718,10 +742,13 @@
             currentRoundPaid[active] = true;
             dailyUnavailable[active] = false; 
             
-            // Ko trenutni potrdi rundo, premaknemo indeks na naslednjo veljavno osebo za prihodnji dan
             advanceToNextEligiblePerson();
 
             logActivity(`Potrjeno za danes: ${active} daje ob 12:00. Indeks premaknjen naprej.`);
+            
+            // Avtomatsko pošiljanje obvestila v Teams
+            sendTeamsMessage(`☕ **${active}** je potrdil, da danes časti kavo.`);
+
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Runda uspešno potrjena in sinhronizirana!");
@@ -737,6 +764,10 @@
             dailyUnavailable[active] = true; 
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
+            
+            // Avtomatsko pošiljanje obvestila v Teams
+            sendTeamsMessage(`⚠️ **${active}** danes ne more dati za kavo.`);
+
             advanceToNextEligiblePerson(); 
             renderUI();
             pushToCloud((success) => {
@@ -756,6 +787,10 @@
             dailyUnavailable[loggedInUser] = false;
             
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
+            
+            // Avtomatsko pošiljanje obvestila v Teams
+            sendTeamsMessage(`🌟 Danes časti: **${loggedInUser}**`);
+
             renderUI();
             pushToCloud((success) => {
                 if (success) alert("Hvala za častitko in sinhronizacijo!");

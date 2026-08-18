@@ -289,9 +289,15 @@
             background: #0f172a;
             color: var(--text-bright);
             font-size: 13px;
-            margin: 8px 0 15px 0;
+            margin: 6px 0 12px 0;
             box-sizing: border-box;
             font-weight: 600;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
         }
 
         .admin-member-row {
@@ -347,6 +353,14 @@
             color: var(--text);
             margin-top: 15px;
             font-family: monospace;
+        }
+
+        .admin-section {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -404,12 +418,31 @@
 
         <div id="settingsContent">
             
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">Urejanje podatkov</h3>
-            <div id="adminMembersList" style="max-height: 320px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">Urejanje ekipe</h3>
+            <div id="adminMembersList" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
 
-            <div style="display: flex; gap: 6px; margin-bottom: 15px;" id="addMemberBox">
+            <div style="display: flex; gap: 6px; margin-bottom: 20px;" id="addMemberBox">
                 <input type="text" id="newMemberNameInput" placeholder="Ime novega sodelavca" style="margin:0; flex:1;">
                 <button class="btn btn-confirm" style="padding: 10px 15px;" onclick="addMember()">➕ Dodaj</button>
+            </div>
+
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🔔 Teams Webhook in sporočila</h3>
+            <div class="admin-section">
+                <label for="teamsWebhookInput">Power Automate Webhook URL:</label>
+                <input type="text" id="teamsWebhookInput" placeholder="https://...">
+
+                <p style="font-size: 11px; color: var(--text); margin-top: -6px; margin-bottom: 12px;">
+                    💡 Uporabi poljubno besedilo. Vključiš lahko dinamična polja: <b>{ime}</b> (kdo ukrepa) ter <b>{naslednji}</b> (kdo je naslednji na vrsti).
+                </p>
+
+                <label for="teamsMsgConfirmInput">1. Potrditev runde (✅):</label>
+                <input type="text" id="teamsMsgConfirmInput">
+
+                <label for="teamsMsgCantInput">2. Oseba danes ne more (❌):</label>
+                <input type="text" id="teamsMsgCantInput">
+
+                <label for="teamsMsgSponsorInput">3. Prostovoljna častitka (⭐):</label>
+                <input type="text" id="teamsMsgSponsorInput">
             </div>
 
             <button class="btn btn-confirm" style="width: 100%; margin-top: 5px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
@@ -424,6 +457,12 @@
     const DEFAULT_TEAM = ["Filipšek", "Fidler", "Pirnat", "Oprešnik", "Govedić", "Fendre", "Šetina", "Vrtačnik", "Gračner", "Rihter"];
     const JSONBIN_ID = "6a635852da38895dfe89ba53";
     const JSONBIN_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
+    
+    // Privzete vrednosti za Teams Webhook
+    let teamsWebhookUrl = "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/806a9b79b01b4219bc66ed4d449ffbfd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=hTxW5wgDGp3I9TXnX6fSdLQ2r7sBnumVkzROnPYLIig";
+    let teamsMsgConfirm = "✅ **{ime}** je potrdil/a rundo za danes ob 12:00! Pripravite skodelice. ☕";
+    let teamsMsgCant = "❌ **{ime}** danes ne more častiti. Naslednji na vrsti je **{naslednji}**.";
+    let teamsMsgSponsor = "⭐ **{ime}** se je javil/a in danes prostovoljno časti kavo! ☕🥳";
 
     let team = [...DEFAULT_TEAM];
     let counts = {};
@@ -440,6 +479,23 @@
     
     let historyStack = [];
 
+    function sendTeamsNotification(message) {
+        if (!teamsWebhookUrl || teamsWebhookUrl.trim() === "") {
+            console.warn("Teams Webhook URL ni nastavljen, obvestilo ni bilo poslano.");
+            return;
+        }
+
+        fetch(teamsWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: message })
+        }).then(res => {
+            console.log("Teams obvestilo poslano (Status: " + res.status + ")");
+        }).catch(err => {
+            console.error("Napaka pri pošiljanju obvestila na Teams:", err);
+        });
+    }
+
     function saveStateSnapshot() {
         const snapshot = {
             team: [...team],
@@ -448,7 +504,8 @@
             currentRoundPaid: { ...currentRoundPaid },
             dailyUnavailable: { ...dailyUnavailable },
             currentIndex: currentIndex,
-            lastRotationDate: lastRotationDate
+            lastRotationDate: lastRotationDate,
+            teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
         };
         historyStack.push(snapshot);
         if (historyStack.length > 20) historyStack.shift();
@@ -467,6 +524,11 @@
         dailyUnavailable = previousState.dailyUnavailable;
         currentIndex = previousState.currentIndex;
         lastRotationDate = previousState.lastRotationDate;
+
+        if (previousState.teamsWebhookUrl !== undefined) teamsWebhookUrl = previousState.teamsWebhookUrl;
+        if (previousState.teamsMsgConfirm !== undefined) teamsMsgConfirm = previousState.teamsMsgConfirm;
+        if (previousState.teamsMsgCant !== undefined) teamsMsgCant = previousState.teamsMsgCant;
+        if (previousState.teamsMsgSponsor !== undefined) teamsMsgSponsor = previousState.teamsMsgSponsor;
 
         logActivity("Izveden Undo (povratek prejšnjega stanja).");
         renderUI();
@@ -528,6 +590,12 @@
                 if (typeof data.currentIndex === 'number') currentIndex = data.currentIndex;
                 if (data.lastRotationDate) lastRotationDate = data.lastRotationDate;
                 if (data.timestamp) appTimestamp = data.timestamp;
+
+                if (data.teamsWebhookUrl !== undefined) teamsWebhookUrl = data.teamsWebhookUrl;
+                if (data.teamsMsgConfirm !== undefined) teamsMsgConfirm = data.teamsMsgConfirm;
+                if (data.teamsMsgCant !== undefined) teamsMsgCant = data.teamsMsgCant;
+                if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
+
                 if (data.activityHistory && Array.isArray(data.activityHistory)) {
                     const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
                     activityHistory = data.activityHistory.filter(item => item.time >= threeDaysAgo);
@@ -545,7 +613,10 @@
     }
 
     function saveLocalStorage() {
-        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
+        const state = { 
+            team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory,
+            teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
+        };
         localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
@@ -654,6 +725,12 @@
                     if (cloudData.dailyUnavailable) dailyUnavailable = cloudData.dailyUnavailable;
                     if (typeof cloudData.currentIndex === 'number') currentIndex = cloudData.currentIndex;
                     if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
+
+                    if (cloudData.teamsWebhookUrl !== undefined) teamsWebhookUrl = cloudData.teamsWebhookUrl;
+                    if (cloudData.teamsMsgConfirm !== undefined) teamsMsgConfirm = cloudData.teamsMsgConfirm;
+                    if (cloudData.teamsMsgCant !== undefined) teamsMsgCant = cloudData.teamsMsgCant;
+                    if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
+
                     if (cloudData.activityHistory && Array.isArray(cloudData.activityHistory)) {
                         const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
                         activityHistory = cloudData.activityHistory.filter(item => item.time >= threeDaysAgo);
@@ -684,7 +761,10 @@
             appTimestamp = Date.now();
             saveLocalStorage();
             
-            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory };
+            const payload = { 
+                team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory,
+                teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
+            };
 
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
@@ -721,8 +801,13 @@
             
             logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
             renderUI();
+            
             pushToCloud((success) => {
-                if (success) alert("Runda uspešno potrjena in sinhronizirana!");
+                if (success) {
+                    alert("Runda uspešno potrjena in sinhronizirana!");
+                    let msg = teamsMsgConfirm.replace(/{ime}/g, active);
+                    sendTeamsNotification(msg);
+                }
             });
         }
     }
@@ -736,10 +821,17 @@
             dailyUnavailable[active] = true; 
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
+            
             advanceToNextEligiblePerson(); 
+            const newActive = getActivePerson();
             renderUI();
+            
             pushToCloud((success) => {
-                if (success) alert("Zabeleženo, naslednji je na vrsti.");
+                if (success) {
+                    alert("Zabeleženo, naslednji je na vrsti.");
+                    let msg = teamsMsgCant.replace(/{ime}/g, active).replace(/{naslednji}/g, newActive);
+                    sendTeamsNotification(msg);
+                }
             });
         }
     }
@@ -757,8 +849,13 @@
             
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
             renderUI();
+            
             pushToCloud((success) => {
-                if (success) alert("Hvala za častitko in sinhronizacijo!");
+                if (success) {
+                    alert("Hvala za častitko in sinhronizacijo!");
+                    let msg = teamsMsgSponsor.replace(/{ime}/g, loggedInUser);
+                    sendTeamsNotification(msg);
+                }
             });
         }
     }
@@ -820,6 +917,13 @@
     function openAdminModal() {
         if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
+        
+        // Napolni Teams polja v nastavitvah
+        document.getElementById('teamsWebhookInput').value = teamsWebhookUrl || '';
+        document.getElementById('teamsMsgConfirmInput').value = teamsMsgConfirm || '';
+        document.getElementById('teamsMsgCantInput').value = teamsMsgCant || '';
+        document.getElementById('teamsMsgSponsorInput').value = teamsMsgSponsor || '';
+
         renderAdminMembers();
     }
 
@@ -836,7 +940,6 @@
         team.forEach((name, index) => {
             const isAbs = absent[name];
             const isPaid = currentRoundPaid[name];
-            const isUnav = dailyUnavailable[name];
             const userCount = counts[name] || 0;
 
             const row = document.createElement('div');
@@ -980,10 +1083,19 @@
     }
 
     function saveAllAdminChanges() {
+        saveStateSnapshot();
+
+        // Shranjevanje Teams nastavitev z okna
+        teamsWebhookUrl = document.getElementById('teamsWebhookInput').value.trim();
+        teamsMsgConfirm = document.getElementById('teamsMsgConfirmInput').value.trim();
+        teamsMsgCant = document.getElementById('teamsMsgCantInput').value.trim();
+        teamsMsgSponsor = document.getElementById('teamsMsgSponsorInput').value.trim();
+
         saveLocalStorage();
         logActivity("Vse spremembe v nastavitvah shranjene.");
+        
         pushToCloud((success) => {
-            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane!");
+            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane v oblaku!");
             else alert("Spremembe shranjene lokalno.");
             closeAdminModal();
             renderUI();

@@ -352,7 +352,6 @@
 </head>
 <body>
 
-<!-- PRIJAVNI MODAL -->
 <div class="overlay" id="loginOverlay" style="display: flex;">
     <div class="modal" style="text-align: center; max-width: 400px;">
         <h2>☕ Kdo se prijavlja?</h2>
@@ -362,7 +361,6 @@
     </div>
 </div>
 
-<!-- GLAVNA APLIKACIJA -->
 <div class="container">
     <div class="header">
         <h1>☕ Odmor za kavo</h1>
@@ -397,7 +395,6 @@
     </div>
 </div>
 
-<!-- SKRBNIŠKI MODAL (NASTAVITVE) -->
 <div class="overlay" id="adminModal">
     <div class="modal">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
@@ -596,10 +593,15 @@
         if (lastRotationDate && lastRotationDate !== todayStr) {
             team.forEach(name => {
                 dailyUnavailable[name] = false; 
-                currentRoundPaid[name] = false; 
             });
-            advanceToNextEligiblePerson();
-            logActivity("Nov dan: Indeks premaknjen naprej, statusi ponastavljeni.");
+            
+            const active = getActivePerson();
+            if (active !== "-" && currentRoundPaid[active]) {
+                advanceToNextEligiblePerson();
+                logActivity("Nov dan: Prejšnji član je že plačal, premik na naslednjega v vrsti.");
+            } else {
+                logActivity("Nov dan: Član še ni potrdil runde, ostaja na vrsti.");
+            }
         }
         lastRotationDate = todayStr;
         saveLocalStorage();

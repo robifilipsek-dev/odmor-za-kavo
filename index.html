@@ -485,10 +485,33 @@
             return;
         }
 
+        // Posodobljeno za podporo Power Automate in Adaptive Cards formatu
+        const payload = {
+            "type": "message",
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.2",
+                        "body": [
+                            {
+                                "type": "TextBlock",
+                                "text": message,
+                                "wrap": true
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+
         fetch(teamsWebhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: message })
+            body: JSON.stringify(payload)
         }).then(res => {
             console.log("Teams obvestilo poslano (Status: " + res.status + ")");
         }).catch(err => {
@@ -662,10 +685,6 @@
         }
 
         if (lastRotationDate && lastRotationDate !== todayStr) {
-            team.forEach(name => {
-                dailyUnavailable[name] = false; 
-            });
-            
             const active = getActivePerson();
             if (active !== "-" && currentRoundPaid[active]) {
                 advanceToNextEligiblePerson();
@@ -673,6 +692,12 @@
             } else {
                 logActivity("Nov dan: Član še ni potrdil runde, ostaja na vrsti.");
             }
+            
+            // Popravek 2: Ob izteku dneva ponastavimo status ZA VSE
+            team.forEach(name => {
+                dailyUnavailable[name] = false; 
+                currentRoundPaid[name] = false; 
+            });
         }
         lastRotationDate = todayStr;
         saveLocalStorage();
@@ -682,13 +707,39 @@
         return !absent[name] && !dailyUnavailable[name];
     }
 
+    // Popravek 1: Naslednji v vrsti je tisti veljaven član z NAJMANJ dosedanjimi rundami
     function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
-        let attempts = 0;
-        do {
-            currentIndex = (currentIndex + 1) % team.length;
-            attempts++;
-        } while (!isPersonValid(team[currentIndex]) && attempts < team.length);
+        
+        let minCount = Infinity;
+        team.forEach(name => {
+            if (isPersonValid(name)) {
+                let c = counts[name] || 0;
+                if (c < minCount) minCount = c;
+            }
+        });
+
+        let found = false;
+        for (let i = 1; i <= team.length; i++) {
+            let idx = (currentIndex + i) % team.length;
+            let name = team[idx];
+            if (isPersonValid(name) && (counts[name] || 0) === minCount) {
+                currentIndex = idx;
+                found = true;
+                break;
+            }
+        }
+        
+        // Zasilni rešitelj
+        if (!found) {
+            for (let i = 1; i <= team.length; i++) {
+                let idx = (currentIndex + i) % team.length;
+                if (isPersonValid(team[idx])) {
+                    currentIndex = idx;
+                    break;
+                }
+            }
+        }
     }
 
     function getActivePerson() {
@@ -918,7 +969,6 @@
         if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
         
-        // Napolni Teams polja v nastavitvah
         document.getElementById('teamsWebhookInput').value = teamsWebhookUrl || '';
         document.getElementById('teamsMsgConfirmInput').value = teamsMsgConfirm || '';
         document.getElementById('teamsMsgCantInput').value = teamsMsgCant || '';
@@ -1085,7 +1135,6 @@
     function saveAllAdminChanges() {
         saveStateSnapshot();
 
-        // Shranjevanje Teams nastavitev z okna
         teamsWebhookUrl = document.getElementById('teamsWebhookInput').value.trim();
         teamsMsgConfirm = document.getElementById('teamsMsgConfirmInput').value.trim();
         teamsMsgCant = document.getElementById('teamsMsgCantInput').value.trim();

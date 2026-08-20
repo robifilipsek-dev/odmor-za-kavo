@@ -335,7 +335,7 @@
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
             <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
             <button class="btn btn-sponsor" onclick="sponsorCoffee()">⭐ Jaz častim danes</button>
-            <button class="btn btn-undo" onclick="undoLastAction()">↩️ Razveljavi zadnjo akcijo (Undo)</button>
+            <button class="btn btn-undo" onclick="undoLastAction()">↩️ Razveljavi (Undo)</button>
         </div>
     </div>
 
@@ -602,9 +602,25 @@
                 }
             });
 
+            // ČE SO VSI PRISOTNI DALI - NOV KROG
             if (activeMembers > 0 && allPaid) {
-                team.forEach(name => { currentRoundPaid[name] = false; });
-                logActivity("Nov krog: Vsi prisotni so dali za kavo, statusi ponastavljeni.");
+                // Poiščemo najmanjše število kav med prisotnimi
+                let minC = Infinity;
+                team.forEach(name => {
+                    if (!absent[name]) {
+                        if ((counts[name] || 0) < minC) minC = counts[name] || 0;
+                    }
+                });
+                
+                // Ponastavimo status, AMPAK ohranimo plačano za tiste, ki so dali "enkrat več"
+                team.forEach(name => {
+                    if ((counts[name] || 0) > minC) {
+                        currentRoundPaid[name] = true; 
+                    } else {
+                        currentRoundPaid[name] = false;
+                    }
+                });
+                logActivity("Nov krog: Statusi ponastavljeni (viški kav upoštevani).");
             }
             needsCloudPush = true;
         }
@@ -618,26 +634,42 @@
         return !absent[name] && !dailyUnavailable[name];
     }
 
+    // Izboljšana funkcija za iskanje naslednje osebe
     function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
+        
         let minCount = Infinity;
+        // Iščemo minimalno število kav TISTIH, ki v tem krogu še NISO dali
         team.forEach(name => {
-            if (isPersonValid(name)) {
+            if (isPersonValid(name) && !currentRoundPaid[name]) {
                 let c = counts[name] || 0;
                 if (c < minCount) minCount = c;
             }
         });
 
+        // Če so morda vsi že dali (redko), iščemo minimalno število kav vseh prisotnih
+        if (minCount === Infinity) {
+            team.forEach(name => {
+                if (isPersonValid(name)) {
+                    let c = counts[name] || 0;
+                    if (c < minCount) minCount = c;
+                }
+            });
+        }
+
         let found = false;
+        // Začnemo iskati naprej od trenutnega indeksa
         for (let i = 1; i <= team.length; i++) {
             let idx = (currentIndex + i) % team.length;
             let name = team[idx];
-            if (isPersonValid(name) && (counts[name] || 0) === minCount) {
+            if (isPersonValid(name) && !currentRoundPaid[name] && (counts[name] || 0) === minCount) {
                 currentIndex = idx;
                 found = true;
                 break;
             }
         }
+        
+        // Če nismo našli (vsi že dali), vzamemo prvo prisotno osebo
         if (!found) {
             for (let i = 1; i <= team.length; i++) {
                 let idx = (currentIndex + i) % team.length;
@@ -765,6 +797,7 @@
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
             
+            // Pojdi na naslednjega
             advanceToNextEligiblePerson(); 
             const newActive = getActivePerson();
             renderUI();
@@ -788,6 +821,13 @@
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             dailyUnavailable[loggedInUser] = false;
+            
+            // Nastavimo to osebo kot trenutno aktivno na UI
+            const idx = team.indexOf(loggedInUser);
+            if (idx !== -1) {
+                currentIndex = idx;
+            }
+
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
             renderUI();
             
@@ -803,6 +843,16 @@
     function renderUI() {
         const active = getActivePerson();
         document.getElementById('currentPersonName').innerText = active;
+        
+        // Posodobimo glavni zaslon in podnaslov, če je oseba potrdila/častila
+        if (active !== "-" && currentRoundPaid[active]) {
+            document.getElementById('statusSubtitle').innerText = "☕ Danes potrjeno časti:";
+            document.getElementById('currentPersonName').style.color = "var(--accent)";
+        } else {
+            document.getElementById('statusSubtitle').innerText = "Danes je na vrsti za kavo:";
+            document.getElementById('currentPersonName').style.color = "var(--text-bright)";
+        }
+
         document.getElementById('settingsBtn').style.display = (loggedInUser === "Filipšek") ? 'flex' : 'none';
 
         const grid = document.getElementById('membersGrid');
@@ -823,6 +873,9 @@
             } else if (isUnav) {
                 cardClass += " is-unavailable";
                 statusText = "❌ Danes ne more";
+            } else if (isNext && isTodayPaid) {
+                cardClass += " is-paid is-next";
+                statusText = "☕ Danes potrjeno časti!";
             } else if (isTodayPaid) {
                 cardClass += " is-paid";
                 statusText = "✅ Že dal";

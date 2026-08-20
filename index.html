@@ -134,30 +134,16 @@
             transform: translateY(1px);
         }
 
-        .btn-confirm {
-            background: var(--accent);
-            color: #0f172a;
-        }
+        .btn-confirm { background: var(--accent); color: #0f172a; }
         .btn-confirm:hover { background: #34d399; }
 
-        .btn-cant {
-            background: var(--danger);
-            color: white;
-        }
+        .btn-cant { background: var(--danger); color: white; }
         .btn-cant:hover { background: #f87171; }
 
-        .btn-sponsor {
-            background: var(--info);
-            color: white;
-            grid-column: span 2;
-        }
+        .btn-sponsor { background: var(--info); color: white; grid-column: span 2; }
         .btn-sponsor:hover { background: #60a5fa; }
 
-        .btn-undo {
-            background: #334155;
-            color: var(--text-bright);
-            grid-column: span 2;
-        }
+        .btn-undo { background: #334155; color: var(--text-bright); grid-column: span 2; }
         .btn-undo:hover { background: #475569; }
 
         .members-grid {
@@ -180,28 +166,10 @@
             transition: all 0.2s ease;
         }
 
-        .member-card.is-next {
-            background: rgba(16, 185, 129, 0.05);
-            border-color: var(--accent);
-        }
-
-        .member-card.is-paid {
-            background: rgba(59, 130, 246, 0.05);
-            border-color: var(--info);
-        }
-
-        .member-card.is-unavailable {
-            background: rgba(239, 68, 68, 0.05);
-            border-color: var(--danger);
-            opacity: 0.7;
-        }
-
-        .member-card.is-absent {
-            background: rgba(15, 23, 42, 0.6);
-            border-style: dashed;
-            opacity: 0.4;
-            filter: grayscale(80%);
-        }
+        .member-card.is-next { background: rgba(16, 185, 129, 0.05); border-color: var(--accent); }
+        .member-card.is-paid { background: rgba(59, 130, 246, 0.05); border-color: var(--info); }
+        .member-card.is-unavailable { background: rgba(239, 68, 68, 0.05); border-color: var(--danger); opacity: 0.7; }
+        .member-card.is-absent { background: rgba(15, 23, 42, 0.6); border-style: dashed; opacity: 0.4; filter: grayscale(80%); }
 
         .member-name {
             font-weight: 700;
@@ -227,17 +195,8 @@
             font-size: 12px;
         }
 
-        .user-info span {
-            font-weight: 700;
-            color: var(--text-bright);
-        }
-
-        .link-btn {
-            color: var(--info);
-            cursor: pointer;
-            text-decoration: underline;
-            margin-left: 5px;
-        }
+        .user-info span { font-weight: 700; color: var(--text-bright); }
+        .link-btn { color: var(--info); cursor: pointer; text-decoration: underline; margin-left: 5px; }
 
         .icon-btn {
             background: #0f172a;
@@ -294,11 +253,7 @@
             font-weight: 600;
         }
 
-        label {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text);
-        }
+        label { font-size: 12px; font-weight: 700; color: var(--text); }
 
         .admin-member-row {
             background: #0f172a;
@@ -318,19 +273,8 @@
             gap: 10px;
         }
 
-        .admin-member-name-input {
-            flex: 1;
-            margin: 0 !important;
-            padding: 6px 10px;
-            font-size: 12px;
-        }
-
-        .admin-controls-inline {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
+        .admin-member-name-input { flex: 1; margin: 0 !important; padding: 6px 10px; font-size: 12px; }
+        .admin-controls-inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
         .mini-btn {
             padding: 5px 8px;
@@ -417,7 +361,6 @@
         </div>
 
         <div id="settingsContent">
-            
             <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">Urejanje ekipe</h3>
             <div id="adminMembersList" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;"></div>
 
@@ -430,10 +373,6 @@
             <div class="admin-section">
                 <label for="teamsWebhookInput">Power Automate Webhook URL:</label>
                 <input type="text" id="teamsWebhookInput" placeholder="https://...">
-
-                <p style="font-size: 11px; color: var(--text); margin-top: -6px; margin-bottom: 12px;">
-                    💡 Uporabi poljubno besedilo. Vključiš lahko dinamična polja: <b>{ime}</b> (kdo ukrepa) ter <b>{naslednji}</b> (kdo je naslednji na vrsti).
-                </p>
 
                 <label for="teamsMsgConfirmInput">1. Potrditev runde (✅):</label>
                 <input type="text" id="teamsMsgConfirmInput">
@@ -458,7 +397,6 @@
     const JSONBIN_ID = "6a635852da38895dfe89ba53";
     const JSONBIN_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
     
-    // Privzete vrednosti za Teams Webhook
     let teamsWebhookUrl = "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/806a9b79b01b4219bc66ed4d449ffbfd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=hTxW5wgDGp3I9TXnX6fSdLQ2r7sBnumVkzROnPYLIig";
     let teamsMsgConfirm = "✅ **{ime}** je potrdil/a rundo za danes ob 12:00! Pripravite skodelice. ☕";
     let teamsMsgCant = "❌ **{ime}** danes ne more častiti. Naslednji na vrsti je **{naslednji}**.";
@@ -476,61 +414,40 @@
     let appTimestamp = Date.now();
     let activityHistory = [];
     let syncTimer = null;
-    
     let historyStack = [];
 
     function sendTeamsNotification(message) {
-        if (!teamsWebhookUrl || teamsWebhookUrl.trim() === "") {
-            console.warn("Teams Webhook URL ni nastavljen, obvestilo ni bilo poslano.");
-            return;
-        }
-
-        // Posodobljeno za podporo Power Automate in Adaptive Cards formatu
+        if (!teamsWebhookUrl || teamsWebhookUrl.trim() === "") return;
         const payload = {
             "type": "message",
-            "attachments": [
-                {
-                    "contentType": "application/vnd.microsoft.card.adaptive",
-                    "contentUrl": null,
-                    "content": {
-                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                        "type": "AdaptiveCard",
-                        "version": "1.2",
-                        "body": [
-                            {
-                                "type": "TextBlock",
-                                "text": message,
-                                "wrap": true
-                            }
-                        ]
-                    }
+            "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "contentUrl": null,
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [{ "type": "TextBlock", "text": message, "wrap": true }]
                 }
-            ]
+            }]
         };
-
         fetch(teamsWebhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-        }).then(res => {
-            console.log("Teams obvestilo poslano (Status: " + res.status + ")");
-        }).catch(err => {
-            console.error("Napaka pri pošiljanju obvestila na Teams:", err);
-        });
+        }).catch(err => console.error("Napaka Teams:", err));
     }
 
     function saveStateSnapshot() {
-        const snapshot = {
+        historyStack.push({
             team: [...team],
             counts: { ...counts },
             absent: { ...absent },
             currentRoundPaid: { ...currentRoundPaid },
             dailyUnavailable: { ...dailyUnavailable },
             currentIndex: currentIndex,
-            lastRotationDate: lastRotationDate,
-            teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
-        };
-        historyStack.push(snapshot);
+            lastRotationDate: lastRotationDate
+        });
         if (historyStack.length > 20) historyStack.shift();
     }
 
@@ -548,11 +465,6 @@
         currentIndex = previousState.currentIndex;
         lastRotationDate = previousState.lastRotationDate;
 
-        if (previousState.teamsWebhookUrl !== undefined) teamsWebhookUrl = previousState.teamsWebhookUrl;
-        if (previousState.teamsMsgConfirm !== undefined) teamsMsgConfirm = previousState.teamsMsgConfirm;
-        if (previousState.teamsMsgCant !== undefined) teamsMsgCant = previousState.teamsMsgCant;
-        if (previousState.teamsMsgSponsor !== undefined) teamsMsgSponsor = previousState.teamsMsgSponsor;
-
         logActivity("Izveden Undo (povratek prejšnjega stanja).");
         renderUI();
         pushToCloud();
@@ -562,10 +474,8 @@
     function logActivity(text) {
         const now = Date.now();
         activityHistory.unshift({ text, time: now });
-        
         const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000);
         activityHistory = activityHistory.filter(item => item.time >= threeDaysAgo);
-        
         updateActivityLogUI();
     }
 
@@ -595,9 +505,7 @@
             renderUI();
         }, true);
 
-        setInterval(() => {
-            syncWithCloud(null, false);
-        }, 5000);
+        setInterval(() => { syncWithCloud(null, false); }, 5000);
     }
 
     function loadLocalStorage() {
@@ -605,7 +513,7 @@
             const saved = localStorage.getItem('COFFEE_APP_STATE_NO_TEAMS');
             if (saved) {
                 const data = JSON.parse(saved);
-                if (data.team && Array.isArray(data.team) && data.team.length > 0) team = data.team;
+                if (data.team?.length > 0) team = data.team;
                 if (data.counts) counts = data.counts;
                 if (data.absent) absent = data.absent;
                 if (data.currentRoundPaid) currentRoundPaid = data.currentRoundPaid;
@@ -613,15 +521,12 @@
                 if (typeof data.currentIndex === 'number') currentIndex = data.currentIndex;
                 if (data.lastRotationDate) lastRotationDate = data.lastRotationDate;
                 if (data.timestamp) appTimestamp = data.timestamp;
-
                 if (data.teamsWebhookUrl !== undefined) teamsWebhookUrl = data.teamsWebhookUrl;
                 if (data.teamsMsgConfirm !== undefined) teamsMsgConfirm = data.teamsMsgConfirm;
                 if (data.teamsMsgCant !== undefined) teamsMsgCant = data.teamsMsgCant;
                 if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
-
-                if (data.activityHistory && Array.isArray(data.activityHistory)) {
-                    const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
-                    activityHistory = data.activityHistory.filter(item => item.time >= threeDaysAgo);
+                if (Array.isArray(data.activityHistory)) {
+                    activityHistory = data.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                 }
             }
         } catch(e) {}
@@ -636,10 +541,7 @@
     }
 
     function saveLocalStorage() {
-        const state = { 
-            team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory,
-            teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
-        };
+        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor };
         localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
@@ -647,10 +549,7 @@
         const select = document.getElementById('loginSelect');
         if (!select) return;
         select.innerHTML = '';
-        
-        const activeTeam = (team && team.length > 0) ? team : DEFAULT_TEAM;
-        
-        activeTeam.forEach(name => {
+        (team.length > 0 ? team : DEFAULT_TEAM).forEach(name => {
             const opt = document.createElement('option');
             opt.value = name;
             opt.innerText = name;
@@ -678,6 +577,7 @@
     function checkDateRollover() {
         const now = new Date();
         const todayStr = now.toDateString();
+        let needsCloudPush = false;
 
         const dateBadge = document.getElementById('dateBadge');
         if (dateBadge) {
@@ -688,29 +588,38 @@
             const active = getActivePerson();
             if (active !== "-" && currentRoundPaid[active]) {
                 advanceToNextEligiblePerson();
-                logActivity("Nov dan: Prejšnji član je že plačal, premik na naslednjega v vrsti.");
-            } else {
-                logActivity("Nov dan: Član še ni potrdil runde, ostaja na vrsti.");
+                logActivity("Nov dan: Prejšnji član je že plačal, premik na naslednjega.");
             }
             
-            // Popravek 2: Ob izteku dneva ponastavimo status ZA VSE
+            team.forEach(name => { dailyUnavailable[name] = false; });
+
+            let allPaid = true;
+            let activeMembers = 0;
             team.forEach(name => {
-                dailyUnavailable[name] = false; 
-                currentRoundPaid[name] = false; 
+                if (!absent[name]) {
+                    activeMembers++;
+                    if (!currentRoundPaid[name]) allPaid = false;
+                }
             });
+
+            if (activeMembers > 0 && allPaid) {
+                team.forEach(name => { currentRoundPaid[name] = false; });
+                logActivity("Nov krog: Vsi prisotni so dali za kavo, statusi ponastavljeni.");
+            }
+            needsCloudPush = true;
         }
+        
         lastRotationDate = todayStr;
         saveLocalStorage();
+        if (needsCloudPush) pushToCloud();
     }
 
     function isPersonValid(name) {
         return !absent[name] && !dailyUnavailable[name];
     }
 
-    // Popravek 1: Naslednji v vrsti je tisti veljaven član z NAJMANJ dosedanjimi rundami
     function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
-        
         let minCount = Infinity;
         team.forEach(name => {
             if (isPersonValid(name)) {
@@ -729,8 +638,6 @@
                 break;
             }
         }
-        
-        // Zasilni rešitelj
         if (!found) {
             for (let i = 1; i <= team.length; i++) {
                 let idx = (currentIndex + i) % team.length;
@@ -746,9 +653,7 @@
         if (team.length === 0) return "-";
         for (let i = 0; i < team.length; i++) {
             let idx = (currentIndex + i) % team.length;
-            if (isPersonValid(team[idx])) {
-                return team[idx];
-            }
+            if (isPersonValid(team[idx])) return team[idx];
         }
         return team[currentIndex % team.length];
     }
@@ -759,32 +664,26 @@
         
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
             method: 'GET',
-            headers: { 
-                'X-Master-Key': JSONBIN_KEY,
-                'Cache-Control': 'no-cache'
-            }
+            headers: { 'X-Master-Key': JSONBIN_KEY, 'Cache-Control': 'no-cache' }
         })
         .then(res => res.json())
         .then(data => {
-            if (data && data.record) {
+            if (data?.record) {
                 const cloudData = data.record;
                 if (forceServer || !cloudData.timestamp || cloudData.timestamp > appTimestamp) {
-                    if (cloudData.team && Array.isArray(cloudData.team) && cloudData.team.length > 0) team = cloudData.team;
+                    if (cloudData.team?.length > 0) team = cloudData.team;
                     if (cloudData.counts) counts = cloudData.counts;
                     if (cloudData.absent) absent = cloudData.absent;
                     if (cloudData.currentRoundPaid) currentRoundPaid = cloudData.currentRoundPaid;
                     if (cloudData.dailyUnavailable) dailyUnavailable = cloudData.dailyUnavailable;
                     if (typeof cloudData.currentIndex === 'number') currentIndex = cloudData.currentIndex;
                     if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
-
                     if (cloudData.teamsWebhookUrl !== undefined) teamsWebhookUrl = cloudData.teamsWebhookUrl;
                     if (cloudData.teamsMsgConfirm !== undefined) teamsMsgConfirm = cloudData.teamsMsgConfirm;
                     if (cloudData.teamsMsgCant !== undefined) teamsMsgCant = cloudData.teamsMsgCant;
                     if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
-
-                    if (cloudData.activityHistory && Array.isArray(cloudData.activityHistory)) {
-                        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
-                        activityHistory = cloudData.activityHistory.filter(item => item.time >= threeDaysAgo);
+                    if (Array.isArray(cloudData.activityHistory)) {
+                        activityHistory = cloudData.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                     }
                     appTimestamp = cloudData.timestamp || Date.now();
                     saveLocalStorage();
@@ -807,15 +706,10 @@
 
     function pushToCloud(onComplete) {
         if (syncTimer) clearTimeout(syncTimer);
-        
         syncTimer = setTimeout(() => {
             appTimestamp = Date.now();
             saveLocalStorage();
-            
-            const payload = { 
-                team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory,
-                teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor
-            };
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor };
 
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
@@ -849,15 +743,13 @@
             counts[active] = (counts[active] || 0) + 1;
             currentRoundPaid[active] = true;
             dailyUnavailable[active] = false; 
-            
             logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
             renderUI();
             
             pushToCloud((success) => {
                 if (success) {
                     alert("Runda uspešno potrjena in sinhronizirana!");
-                    let msg = teamsMsgConfirm.replace(/{ime}/g, active);
-                    sendTeamsNotification(msg);
+                    sendTeamsNotification(teamsMsgConfirm.replace(/{ime}/g, active));
                 }
             });
         }
@@ -880,8 +772,7 @@
             pushToCloud((success) => {
                 if (success) {
                     alert("Zabeleženo, naslednji je na vrsti.");
-                    let msg = teamsMsgCant.replace(/{ime}/g, active).replace(/{naslednji}/g, newActive);
-                    sendTeamsNotification(msg);
+                    sendTeamsNotification(teamsMsgCant.replace(/{ime}/g, active).replace(/{naslednji}/g, newActive));
                 }
             });
         }
@@ -897,15 +788,13 @@
             counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
             currentRoundPaid[loggedInUser] = true;
             dailyUnavailable[loggedInUser] = false;
-            
             logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
             renderUI();
             
             pushToCloud((success) => {
                 if (success) {
                     alert("Hvala za častitko in sinhronizacijo!");
-                    let msg = teamsMsgSponsor.replace(/{ime}/g, loggedInUser);
-                    sendTeamsNotification(msg);
+                    sendTeamsNotification(teamsMsgSponsor.replace(/{ime}/g, loggedInUser));
                 }
             });
         }
@@ -914,13 +803,7 @@
     function renderUI() {
         const active = getActivePerson();
         document.getElementById('currentPersonName').innerText = active;
-
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (loggedInUser === "Filipšek") {
-            settingsBtn.style.display = 'flex';
-        } else {
-            settingsBtn.style.display = 'none';
-        }
+        document.getElementById('settingsBtn').style.display = (loggedInUser === "Filipšek") ? 'flex' : 'none';
 
         const grid = document.getElementById('membersGrid');
         grid.innerHTML = '';
@@ -940,25 +823,18 @@
             } else if (isUnav) {
                 cardClass += " is-unavailable";
                 statusText = "❌ Danes ne more";
-            } else if (name === active && isTodayPaid) {
-                cardClass += " is-paid";
-                statusText = "✅ Potrjena runda ob 12:00";
             } else if (isTodayPaid) {
                 cardClass += " is-paid";
                 statusText = "✅ Že dal";
             } else if (isNext) {
                 cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
-            } else {
-                statusText = "";
             }
 
             const card = document.createElement('div');
             card.className = cardClass;
             card.innerHTML = `
-                <div class="member-name">
-                    <span>${name}</span>
-                </div>
+                <div class="member-name"><span>${name}</span></div>
                 <div class="member-meta">${statusText}</div>
             `;
             grid.appendChild(card);
@@ -968,12 +844,10 @@
     function openAdminModal() {
         if (loggedInUser !== "Filipšek") return;
         document.getElementById('adminModal').style.display = 'flex';
-        
         document.getElementById('teamsWebhookInput').value = teamsWebhookUrl || '';
         document.getElementById('teamsMsgConfirmInput').value = teamsMsgConfirm || '';
         document.getElementById('teamsMsgCantInput').value = teamsMsgCant || '';
         document.getElementById('teamsMsgSponsorInput').value = teamsMsgSponsor || '';
-
         renderAdminMembers();
     }
 
@@ -996,7 +870,7 @@
             row.className = 'admin-member-row';
             row.innerHTML = `
                 <div class="admin-member-top">
-                    <input type="text" class="admin-member-name-input" id="nameInput_${index}" value="${name}" placeholder="Ime člana">
+                    <input type="text" class="admin-member-name-input" id="nameInput_${index}" value="${name}">
                     <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="renameMember(${index})">✏️ Preimenuj</button>
                     <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️ Odstrani</button>
                 </div>
@@ -1004,19 +878,15 @@
                     <span style="font-size: 11px; font-weight: bold; color: var(--text);">Število rund:</span>
                     <div style="display: flex; align-items: center; gap: 4px;">
                         <button class="mini-btn" style="background:#334155; color:white; padding: 4px 8px;" onclick="changeCount('${name}', -1)">➖</button>
-                        <span id="countDisplay_${index}" style="font-size: 12px; font-weight: bold; min-width: 24px; text-align: center; color: var(--text-bright);">${userCount}</span>
+                        <span style="font-size: 12px; font-weight: bold; min-width: 24px; text-align: center; color: var(--text-bright);">${userCount}</span>
                         <button class="mini-btn" style="background:#334155; color:white; padding: 4px 8px;" onclick="changeCount('${name}', 1)">➕</button>
                     </div>
                 </div>
                 <div class="admin-controls-inline" style="justify-content: space-between; border-top: 1px solid var(--card-border); margin-top: 4px; padding-top: 6px;">
                     <div style="display:flex; gap:4px; flex-wrap: wrap; width: 100%; justify-content: space-between;">
-                        <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="setAsNext(${index})" title="Določi kot naslednjega">👉 Naslednji</button>
-                        <button class="mini-btn" style="background: ${isPaid ? '#10b981' : '#334155'}; color:white;" onclick="togglePaid('${name}')">
-                            ${isPaid ? '✅ Že dal' : '⭕ Že dal'}
-                        </button>
-                        <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#334155'}; color:white;" onclick="toggleAbsent('${name}')">
-                            ${isAbs ? '🌴 Dopust' : '⭕ Dopust'}
-                        </button>
+                        <button class="mini-btn" style="background:#3b82f6; color:white;" onclick="setAsNext(${index})">👉 Naslednji</button>
+                        <button class="mini-btn" style="background: ${isPaid ? '#10b981' : '#334155'}; color:white;" onclick="togglePaid('${name}')">${isPaid ? '✅ Že dal' : '⭕ Že dal'}</button>
+                        <button class="mini-btn" style="background: ${isAbs ? '#ef4444' : '#334155'}; color:white;" onclick="toggleAbsent('${name}')">${isAbs ? '🌴 Dopust' : '⭕ Dopust'}</button>
                         <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, -1)">⬆️</button>
                         <button class="mini-btn" style="background:#334155; color:white;" onclick="moveMember(${index}, 1)">⬇️</button>
                     </div>
@@ -1028,45 +898,30 @@
 
     function changeCount(name, amount) {
         saveStateSnapshot();
-        const current = counts[name] || 0;
-        const updated = Math.max(0, current + amount);
-        counts[name] = updated;
-        logActivity(`Spremenjeno število rund za ${name}: ${current} -> ${updated}`);
+        counts[name] = Math.max(0, (counts[name] || 0) + amount);
+        logActivity(`Spremenjeno število rund za ${name}`);
         renderAdminMembers();
     }
 
     function setAsNext(index) {
         saveStateSnapshot();
         currentIndex = index;
-        logActivity(`Ročno nastavljen naslednji član: ${team[index]}`);
+        logActivity(`Ročno nastavljen naslednji: ${team[index]}`);
         renderAdminMembers();
-        alert(`Član ${team[index]} je sedaj nastavljen kot naslednji na vrsti!`);
+        alert(`Član ${team[index]} je nastavljen kot naslednji!`);
     }
 
     function renameMember(index) {
-        const input = document.getElementById(`nameInput_${index}`);
-        const newName = input.value.trim();
+        const newName = document.getElementById(`nameInput_${index}`).value.trim();
         const oldName = team[index];
-        if (!newName || newName === oldName) return;
-        if (team.includes(newName)) {
-            alert("Ime že obstaja v ekipi!");
-            return;
-        }
+        if (!newName || newName === oldName || team.includes(newName)) return;
 
         saveStateSnapshot();
         team[index] = newName;
-        
-        counts[newName] = counts[oldName] || 0;
-        delete counts[oldName];
-        
-        absent[newName] = absent[oldName] || false;
-        delete absent[oldName];
-        
-        currentRoundPaid[newName] = currentRoundPaid[oldName] || false;
-        delete currentRoundPaid[oldName];
-        
-        dailyUnavailable[newName] = dailyUnavailable[oldName] || false;
-        delete dailyUnavailable[oldName];
+        counts[newName] = counts[oldName] || 0; delete counts[oldName];
+        absent[newName] = absent[oldName] || false; delete absent[oldName];
+        currentRoundPaid[newName] = currentRoundPaid[oldName] || false; delete currentRoundPaid[oldName];
+        dailyUnavailable[newName] = dailyUnavailable[oldName] || false; delete dailyUnavailable[oldName];
 
         logActivity(`Preimenovan član: ${oldName} -> ${newName}`);
         setupLoginDropdown();
@@ -1076,18 +931,14 @@
     function toggleAbsent(name) {
         saveStateSnapshot();
         absent[name] = !absent[name];
-        logActivity(`Spremenjen status dopusta/odsotnosti za ${name}: ${absent[name]}`);
+        logActivity(`Spremenjen status dopusta za ${name}`);
         renderAdminMembers();
     }
 
     function togglePaid(name) {
         saveStateSnapshot();
         currentRoundPaid[name] = !currentRoundPaid[name];
-        if(currentRoundPaid[name]) {
-            counts[name] = (counts[name] || 0) + 1;
-        } else {
-            counts[name] = Math.max(0, (counts[name] || 1) - 1);
-        }
+        counts[name] = currentRoundPaid[name] ? (counts[name] || 0) + 1 : Math.max(0, (counts[name] || 1) - 1);
         logActivity(`Spremenjen status 'Že dal' za ${name}`);
         renderAdminMembers();
     }
@@ -1108,10 +959,7 @@
         if (!name || team.includes(name)) return;
         saveStateSnapshot();
         team.push(name);
-        counts[name] = 0;
-        absent[name] = false;
-        currentRoundPaid[name] = false;
-        dailyUnavailable[name] = false;
+        counts[name] = 0; absent[name] = false; currentRoundPaid[name] = false; dailyUnavailable[name] = false;
         input.value = '';
         logActivity(`Dodan nov član: ${name}`);
         setupLoginDropdown();
@@ -1122,10 +970,7 @@
         if (confirm(`Odstrani člana ${name}?`)) {
             saveStateSnapshot();
             team = team.filter(m => m !== name);
-            delete counts[name];
-            delete absent[name];
-            delete currentRoundPaid[name];
-            delete dailyUnavailable[name];
+            delete counts[name]; delete absent[name]; delete currentRoundPaid[name]; delete dailyUnavailable[name];
             logActivity(`Odstranjen član: ${name}`);
             setupLoginDropdown();
             renderAdminMembers();
@@ -1134,18 +979,16 @@
 
     function saveAllAdminChanges() {
         saveStateSnapshot();
-
         teamsWebhookUrl = document.getElementById('teamsWebhookInput').value.trim();
         teamsMsgConfirm = document.getElementById('teamsMsgConfirmInput').value.trim();
         teamsMsgCant = document.getElementById('teamsMsgCantInput').value.trim();
         teamsMsgSponsor = document.getElementById('teamsMsgSponsorInput').value.trim();
 
         saveLocalStorage();
-        logActivity("Vse spremembe v nastavitvah shranjene.");
+        logActivity("Spremembe v nastavitvah shranjene.");
         
         pushToCloud((success) => {
-            if (success) alert("Vse spremembe uspešno shranjene in sinhronizirane v oblaku!");
-            else alert("Spremembe shranjene lokalno.");
+            alert(success ? "Spremembe uspešno shranjene in sinhronizirane!" : "Spremembe shranjene lokalno.");
             closeAdminModal();
             renderUI();
         });

@@ -143,6 +143,9 @@
         .btn-sponsor { background: var(--info); color: white; grid-column: span 2; }
         .btn-sponsor:hover { background: #60a5fa; }
 
+        .btn-invite { background: #8b5cf6; color: white; grid-column: span 2; }
+        .btn-invite:hover { background: #a78bfa; }
+
         .btn-undo { background: #334155; color: var(--text-bright); grid-column: span 2; }
         .btn-undo:hover { background: #475569; }
 
@@ -184,6 +187,21 @@
             font-size: 11px;
             color: var(--text);
             margin-top: 4px;
+        }
+
+        .absent-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .absent-toggle-btn:hover {
+            background: var(--card-border);
+            color: var(--text-bright);
         }
 
         .footer {
@@ -335,6 +353,7 @@
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
             <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
             <button class="btn btn-sponsor" onclick="sponsorCoffee()">⭐ Jaz častim danes</button>
+            <button class="btn btn-invite" onclick="inviteToCoffee()">⏰ Povabi na kavo (Teams)</button>
             <button class="btn btn-undo" onclick="undoLastAction()">↩️ Razveljavi (Undo)</button>
         </div>
     </div>
@@ -382,6 +401,9 @@
 
                 <label for="teamsMsgSponsorInput">3. Prostovoljna častitka (⭐):</label>
                 <input type="text" id="teamsMsgSponsorInput">
+
+                <label for="teamsMsgInviteInput">4. Vabilo na kavo (⏰):</label>
+                <input type="text" id="teamsMsgInviteInput">
             </div>
 
             <button class="btn btn-confirm" style="width: 100%; margin-top: 5px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
@@ -401,6 +423,7 @@
     let teamsMsgConfirm = "✅ **{ime}** je potrdil/a rundo za danes ob 12:00! Pripravite skodelice. ☕";
     let teamsMsgCant = "❌ **{ime}** danes ne more častiti. Naslednji na vrsti je **{naslednji}**.";
     let teamsMsgSponsor = "⭐ **{ime}** se je javil/a in danes prostovoljno časti kavo! ☕🥳";
+    let teamsMsgInvite = "☕ **{ime}** vas vabi na kavo! Zberemo se ob **{cas}**!";
 
     let team = [...DEFAULT_TEAM];
     let counts = {};
@@ -525,6 +548,7 @@
                 if (data.teamsMsgConfirm !== undefined) teamsMsgConfirm = data.teamsMsgConfirm;
                 if (data.teamsMsgCant !== undefined) teamsMsgCant = data.teamsMsgCant;
                 if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
+                if (data.teamsMsgInvite !== undefined) teamsMsgInvite = data.teamsMsgInvite;
                 if (Array.isArray(data.activityHistory)) {
                     activityHistory = data.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                 }
@@ -541,7 +565,7 @@
     }
 
     function saveLocalStorage() {
-        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor };
+        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite };
         localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
@@ -602,9 +626,7 @@
                 }
             });
 
-            // ČE SO VSI PRISOTNI DALI - NOV KROG
             if (activeMembers > 0 && allPaid) {
-                // Poiščemo najmanjše število kav med prisotnimi
                 let minC = Infinity;
                 team.forEach(name => {
                     if (!absent[name]) {
@@ -612,7 +634,6 @@
                     }
                 });
                 
-                // Ponastavimo status, AMPAK ohranimo plačano za tiste, ki so dali "enkrat več"
                 team.forEach(name => {
                     if ((counts[name] || 0) > minC) {
                         currentRoundPaid[name] = true; 
@@ -634,12 +655,10 @@
         return !absent[name] && !dailyUnavailable[name];
     }
 
-    // Izboljšana funkcija za iskanje naslednje osebe
     function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
         
         let minCount = Infinity;
-        // Iščemo minimalno število kav TISTIH, ki v tem krogu še NISO dali
         team.forEach(name => {
             if (isPersonValid(name) && !currentRoundPaid[name]) {
                 let c = counts[name] || 0;
@@ -647,7 +666,6 @@
             }
         });
 
-        // Če so morda vsi že dali (redko), iščemo minimalno število kav vseh prisotnih
         if (minCount === Infinity) {
             team.forEach(name => {
                 if (isPersonValid(name)) {
@@ -658,7 +676,6 @@
         }
 
         let found = false;
-        // Začnemo iskati naprej od trenutnega indeksa
         for (let i = 1; i <= team.length; i++) {
             let idx = (currentIndex + i) % team.length;
             let name = team[idx];
@@ -669,7 +686,6 @@
             }
         }
         
-        // Če nismo našli (vsi že dali), vzamemo prvo prisotno osebo
         if (!found) {
             for (let i = 1; i <= team.length; i++) {
                 let idx = (currentIndex + i) % team.length;
@@ -714,6 +730,7 @@
                     if (cloudData.teamsMsgConfirm !== undefined) teamsMsgConfirm = cloudData.teamsMsgConfirm;
                     if (cloudData.teamsMsgCant !== undefined) teamsMsgCant = cloudData.teamsMsgCant;
                     if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
+                    if (cloudData.teamsMsgInvite !== undefined) teamsMsgInvite = cloudData.teamsMsgInvite;
                     if (Array.isArray(cloudData.activityHistory)) {
                         activityHistory = cloudData.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                     }
@@ -741,7 +758,7 @@
         syncTimer = setTimeout(() => {
             appTimestamp = Date.now();
             saveLocalStorage();
-            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor };
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite };
 
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
@@ -797,7 +814,6 @@
             currentRoundPaid[active] = false;
             logActivity(`${active} danes ne more dati za kavo.`);
             
-            // Pojdi na naslednjega
             advanceToNextEligiblePerson(); 
             const newActive = getActivePerson();
             renderUI();
@@ -822,7 +838,6 @@
             currentRoundPaid[loggedInUser] = true;
             dailyUnavailable[loggedInUser] = false;
             
-            // Nastavimo to osebo kot trenutno aktivno na UI
             const idx = team.indexOf(loggedInUser);
             if (idx !== -1) {
                 currentIndex = idx;
@@ -840,11 +855,35 @@
         }
     }
 
+    function inviteToCoffee() {
+        let time = prompt("Ob kateri uri gremo danes na kavo?", "12:00");
+        if (time) {
+            let userToNotify = loggedInUser || "Neznano";
+            let msg = teamsMsgInvite.replace(/{ime}/g, userToNotify).replace(/{cas}/g, time);
+            sendTeamsNotification(msg);
+            logActivity(`Poslano vabilo na kavo za ob ${time}.`);
+            alert(`Vabilo za ob ${time} je bilo uspešno poslano na Teams!`);
+        }
+    }
+
+    function toggleAbsence(name) {
+        saveStateSnapshot();
+        dailyUnavailable[name] = !dailyUnavailable[name];
+        let actor = loggedInUser || "Nekdo";
+        logActivity(`${actor} je označil, da ${name} danes ${dailyUnavailable[name] ? 'ne more (odsoten)' : 'lahko'}.`);
+        
+        let active = getActivePerson();
+        if (active === name && dailyUnavailable[name]) {
+            advanceToNextEligiblePerson();
+        }
+        renderUI();
+        if (typeof pushToCloud === "function") pushToCloud();
+    }
+
     function renderUI() {
         const active = getActivePerson();
         document.getElementById('currentPersonName').innerText = active;
         
-        // Posodobimo glavni zaslon in podnaslov, če je oseba potrdila/častila
         if (active !== "-" && currentRoundPaid[active]) {
             document.getElementById('statusSubtitle').innerText = "☕ Danes potrjeno časti:";
             document.getElementById('currentPersonName').style.color = "var(--accent)";
@@ -887,7 +926,12 @@
             const card = document.createElement('div');
             card.className = cardClass;
             card.innerHTML = `
-                <div class="member-name"><span>${name}</span></div>
+                <div class="member-name">
+                    <span>${name}</span>
+                    <button class="absent-toggle-btn" onclick="toggleAbsence('${name}')" title="Preklopi odsotnost">
+                        ${dailyUnavailable[name] ? '❌ Odsoten' : '✔️ Prisoten'}
+                    </button>
+                </div>
                 <div class="member-meta">${statusText}</div>
             `;
             grid.appendChild(card);
@@ -901,6 +945,7 @@
         document.getElementById('teamsMsgConfirmInput').value = teamsMsgConfirm || '';
         document.getElementById('teamsMsgCantInput').value = teamsMsgCant || '';
         document.getElementById('teamsMsgSponsorInput').value = teamsMsgSponsor || '';
+        document.getElementById('teamsMsgInviteInput').value = teamsMsgInvite || '';
         renderAdminMembers();
     }
 
@@ -1036,6 +1081,7 @@
         teamsMsgConfirm = document.getElementById('teamsMsgConfirmInput').value.trim();
         teamsMsgCant = document.getElementById('teamsMsgCantInput').value.trim();
         teamsMsgSponsor = document.getElementById('teamsMsgSponsorInput').value.trim();
+        teamsMsgInvite = document.getElementById('teamsMsgInviteInput').value.trim();
 
         saveLocalStorage();
         logActivity("Spremembe v nastavitvah shranjene.");

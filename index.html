@@ -434,6 +434,7 @@
     let lastRotationDate = "";
     
     let loggedInUser = "";
+    let activeSessions = {}; // Sledi aktivnim uporabnikom na napravah
     let appTimestamp = Date.now();
     let activityHistory = [];
     let syncTimer = null;
@@ -520,7 +521,13 @@
     function init() {
         loadLocalStorage();
         setupLoginDropdown(); 
-        document.getElementById('loginOverlay').style.display = 'flex';
+        
+        if (!loggedInUser) {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        } else {
+            document.getElementById('loggedInUserDisplay').innerText = loggedInUser;
+            document.getElementById('loginOverlay').style.display = 'none';
+        }
         
         syncWithCloud(() => {
             setupLoginDropdown(); 
@@ -549,6 +556,7 @@
                 if (data.teamsMsgCant !== undefined) teamsMsgCant = data.teamsMsgCant;
                 if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
                 if (data.teamsMsgInvite !== undefined) teamsMsgInvite = data.teamsMsgInvite;
+                if (data.loggedInUser) loggedInUser = data.loggedInUser;
                 if (Array.isArray(data.activityHistory)) {
                     activityHistory = data.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                 }
@@ -565,7 +573,7 @@
     }
 
     function saveLocalStorage() {
-        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite };
+        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, loggedInUser, activeSessions };
         localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
@@ -579,6 +587,9 @@
             opt.innerText = name;
             select.appendChild(opt);
         });
+        if (loggedInUser) {
+            select.value = loggedInUser;
+        }
     }
 
     function handleLogin() {
@@ -589,6 +600,10 @@
         document.getElementById('loggedInUserDisplay').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
         logActivity(`Prijavljen uporabnik: ${loggedInUser}`);
+        
+        // Zapišemo svojo aktivno sejo
+        activeSessions[socketId || (Math.random().toString())] = { user: loggedInUser, time: Date.now() };
+
         renderUI();
         pushToCloud();
     }
@@ -597,6 +612,8 @@
         setupLoginDropdown();
         document.getElementById('loginOverlay').style.display = 'flex';
     }
+
+    let socketId = Math.random().toString(36).substring(2);
 
     function checkDateRollover() {
         const now = new Date();
@@ -731,6 +748,7 @@
                     if (cloudData.teamsMsgCant !== undefined) teamsMsgCant = cloudData.teamsMsgCant;
                     if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
                     if (cloudData.teamsMsgInvite !== undefined) teamsMsgInvite = cloudData.teamsMsgInvite;
+                    if (cloudData.activeSessions) activeSessions = cloudData.activeSessions;
                     if (Array.isArray(cloudData.activityHistory)) {
                         activityHistory = cloudData.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                     }
@@ -757,8 +775,11 @@
         if (syncTimer) clearTimeout(syncTimer);
         syncTimer = setTimeout(() => {
             appTimestamp = Date.now();
+            if (loggedInUser) {
+                activeSessions[socketId] = { user: loggedInUser, time: Date.now() };
+            }
             saveLocalStorage();
-            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite };
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, activeSessions };
 
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
@@ -784,6 +805,7 @@
     }
 
     function confirmMyCoffee() {
+        // Uporabimo kdor je dejansko na vrsti, ali tistega ki potrjuje (običajno tisti, ki je na vrsti)
         const active = getActivePerson();
         if (active === "-") return;
 

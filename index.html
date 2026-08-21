@@ -211,10 +211,13 @@
             border-top: 1px solid var(--card-border);
             padding-top: 15px;
             font-size: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .user-info span { font-weight: 700; color: var(--text-bright); }
         .link-btn { color: var(--info); cursor: pointer; text-decoration: underline; margin-left: 5px; }
+        .active-users-list { font-size: 11px; color: var(--text); width: 100%; margin-top: 4px; }
 
         .icon-btn {
             background: #0f172a;
@@ -369,6 +372,7 @@
             <button class="icon-btn" onclick="syncWithCloud(null, true)" title="Osveži podatke s strežnika">🔄</button>
             <button class="icon-btn" id="settingsBtn" onclick="openAdminModal()" title="Nastavitve" style="display: none;">⚙️</button>
         </div>
+        <div class="active-users-list" id="activeUsersDisplay">Aktivni: -</div>
     </div>
 </div>
 
@@ -434,11 +438,49 @@
     let lastRotationDate = "";
     
     let loggedInUser = "";
-    let activeSessions = {}; // Sledi aktivnim uporabnikom na napravah
+    let activeSessions = {};
     let appTimestamp = Date.now();
     let activityHistory = [];
     let syncTimer = null;
     let historyStack = [];
+    let socketId = Math.random().toString(36).substring(2);
+    let isSavingToCloud = false;
+
+    // Zaščita pred zapiranjem zavihka sredi sinhronizacije
+    window.addEventListener('beforeunload', (e) => {
+        if (isSavingToCloud) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    function cleanOldSessions() {
+        const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000);
+        for (let id in activeSessions) {
+            if (activeSessions[id].time < twelveHoursAgo) {
+                delete activeSessions[id];
+            }
+        }
+    }
+
+    function updateActiveUsersUI() {
+        const display = document.getElementById('activeUsersDisplay');
+        if (!display) return;
+        cleanOldSessions();
+        
+        const usersMap = {};
+        for (let id in activeSessions) {
+            if (activeSessions[id].user) {
+                usersMap[activeSessions[id].user] = true;
+            }
+        }
+        const activeNames = Object.keys(usersMap);
+        if (activeNames.length === 0) {
+            display.innerText = "Aktivni v tem trenutku: Nihče (ali ni podatka)";
+        } else {
+            display.innerText = "Aktivni v tem trenutku: " + activeNames.join(', ');
+        }
+    }
 
     function sendTeamsNotification(message) {
         if (!teamsWebhookUrl || teamsWebhookUrl.trim() === "") return;
@@ -557,6 +599,7 @@
                 if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
                 if (data.teamsMsgInvite !== undefined) teamsMsgInvite = data.teamsMsgInvite;
                 if (data.loggedInUser) loggedInUser = data.loggedInUser;
+                if (data.activeSessions) activeSessions = data.activeSessions;
                 if (Array.isArray(data.activityHistory)) {
                     activityHistory = data.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                 }
@@ -601,8 +644,7 @@
         document.getElementById('loginOverlay').style.display = 'none';
         logActivity(`Prijavljen uporabnik: ${loggedInUser}`);
         
-        // Zapišemo svojo aktivno sejo
-        activeSessions[socketId || (Math.random().toString())] = { user: loggedInUser, time: Date.now() };
+        activeSessions[socketId] = { user: loggedInUser, time: Date.now() };
 
         renderUI();
         pushToCloud();
@@ -612,8 +654,6 @@
         setupLoginDropdown();
         document.getElementById('loginOverlay').style.display = 'flex';
     }
-
-    let socketId = Math.random().toString(36).substring(2);
 
     function checkDateRollover() {
         const now = new Date();
@@ -727,6 +767,11 @@
         const syncStatus = document.getElementById('syncStatus');
         if (syncStatus && forceServer) syncStatus.innerText = '⏳ Nalagam...';
         
+        // Osvežimo čas svoje seje, da ostanemo aktivni
+        if (loggedInUser) {
+            activeSessions[socketId] = { user: loggedInUser, time: Date.now() };
+        }
+
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_KEY, 'Cache-Control': 'no-cache' }
@@ -748,7 +793,11 @@
                     if (cloudData.teamsMsgCant !== undefined) teamsMsgCant = cloudData.teamsMsgCant;
                     if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
                     if (cloudData.teamsMsgInvite !== undefined) teamsMsgInvite = cloudData.teamsMsgInvite;
-                    if (cloudData.activeSessions) activeSessions = cloudData.activeSessions;
+                    
+                    if (cloudData.activeSessions) {
+                        activeSessions = { ...cloudData.activeSessions, ...activeSessions };
+                    }
+                    
                     if (Array.isArray(cloudData.activityHistory)) {
                         activityHistory = cloudData.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
                     }
@@ -758,6 +807,8 @@
                 }
             }
             if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
+            cleanOldSessions();
+            updateActiveUsersUI();
             setupLoginDropdown();
             checkDateRollover();
             renderUI();
@@ -765,6 +816,8 @@
         })
         .catch(() => {
             if (syncStatus) syncStatus.innerText = '⚠️ Lokalno';
+            cleanOldSessions();
+            updateActiveUsersUI();
             setupLoginDropdown();
             renderUI();
             if (onComplete) onComplete(false);
@@ -778,18 +831,23 @@
             if (loggedInUser) {
                 activeSessions[socketId] = { user: loggedInUser, time: Date.now() };
             }
+            cleanOldSessions();
             saveLocalStorage();
+            
             const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, activeSessions };
 
+            isSavingToCloud = true;
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
                 body: JSON.stringify(payload)
             })
             .then(res => {
+                isSavingToCloud = false;
                 const syncStatus = document.getElementById('syncStatus');
                 if (res.ok) {
                     if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
+                    updateActiveUsersUI();
                     if (onComplete) onComplete(true);
                 } else {
                     if (syncStatus) syncStatus.innerText = '⚠️ Napaka';
@@ -797,6 +855,7 @@
                 }
             })
             .catch(() => {
+                isSavingToCloud = false;
                 const syncStatus = document.getElementById('syncStatus');
                 if (syncStatus) syncStatus.innerText = '⚠️ Brez povezave';
                 if (onComplete) onComplete(false);
@@ -805,7 +864,6 @@
     }
 
     function confirmMyCoffee() {
-        // Uporabimo kdor je dejansko na vrsti, ali tistega ki potrjuje (običajno tisti, ki je na vrsti)
         const active = getActivePerson();
         if (active === "-") return;
 
@@ -958,6 +1016,8 @@
             `;
             grid.appendChild(card);
         });
+        
+        updateActiveUsersUI();
     }
 
     function openAdminModal() {

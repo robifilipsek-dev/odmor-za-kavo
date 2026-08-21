@@ -446,8 +446,14 @@
     let socketId = Math.random().toString(36).substring(2);
     let isSavingToCloud = false;
 
-    // Zaščita pred zapiranjem zavihka sredi sinhronizacije
     window.addEventListener('beforeunload', (e) => {
+        // Ob zapiranju zavihka takoj odstranimo svojo sejo iz aktivnih in poskusimo poslati posodobitev
+        if (loggedInUser && activeSessions[socketId]) {
+            delete activeSessions[socketId];
+            // Poskus sinhronizacije stanja brez seje ob izhodu
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: Date.now(), activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, activeSessions };
+            navigator.sendBeacon(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, JSON.stringify(payload)); // Opomba: jsonbin zahteva headerje, zato se zanesemo na hiter timeout čiščenja
+        }
         if (isSavingToCloud) {
             e.preventDefault();
             e.returnValue = '';
@@ -455,9 +461,12 @@
     });
 
     function cleanOldSessions() {
-        const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000);
+        // Popravek: zmanjšano iz 12 ur na 25 sekund. 
+        // Ker se aplikacija osvežuje vsakih 5 sekund, se neaktivne seje (zaprte aplikacije) hitro izbrišejo.
+        const timeoutLimit = 25 * 1000; 
+        const now = Date.now();
         for (let id in activeSessions) {
-            if (activeSessions[id].time < twelveHoursAgo) {
+            if (now - activeSessions[id].time > timeoutLimit) {
                 delete activeSessions[id];
             }
         }
@@ -767,7 +776,6 @@
         const syncStatus = document.getElementById('syncStatus');
         if (syncStatus && forceServer) syncStatus.innerText = '⏳ Nalagam...';
         
-        // Osvežimo čas svoje seje, da ostanemo aktivni
         if (loggedInUser) {
             activeSessions[socketId] = { user: loggedInUser, time: Date.now() };
         }

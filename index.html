@@ -104,15 +104,8 @@
             font-size: 26px;
             color: var(--text-bright);
             display: block;
-            margin: 8px 0 10px 0;
+            margin: 8px 0 15px 0;
             font-weight: 900;
-        }
-
-        .next-person-info {
-            font-size: 12px;
-            color: var(--text);
-            margin-bottom: 15px;
-            font-weight: 600;
         }
 
         .action-buttons {
@@ -283,6 +276,7 @@
 
         label { font-size: 12px; font-weight: 700; color: var(--text); }
 
+        /* Kompakten prikaz ekipe v mrei brez drsnika */
         .admin-members-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -333,6 +327,19 @@
             white-space: nowrap;
         }
 
+        .activity-log {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 10px;
+            max-height: 140px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: var(--text);
+            margin-top: 15px;
+            font-family: monospace;
+        }
+
         .admin-section {
             background: #0f172a;
             border: 1px solid var(--card-border);
@@ -340,6 +347,15 @@
             padding: 12px;
             margin-bottom: 15px;
         }
+
+        .active-session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .active-session-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -363,9 +379,8 @@
     </div>
 
     <div class="status-box">
-        <span id="statusSubtitle">Danes je na vrsti za kavo:</span>
+        <span id="statusSubtitle">Danes časti kavo:</span>
         <strong id="currentPersonName">-</strong>
-        <div id="nextPersonSubtext" class="next-person-info" style="display: none;"></div>
         <div class="action-buttons">
             <button class="btn btn-confirm" onclick="confirmMyCoffee()">✅ Potrjujem rundo</button>
             <button class="btn btn-cant" onclick="cantGiveCoffee()">❌ Danes ne morem</button>
@@ -397,7 +412,14 @@
         </div>
 
         <div id="settingsContent">
-            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">Urejanje ekipe</h3>
+            <!-- ODSEK ZA AKTIVNE UPORABNIKE IN SEJE -->
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px;">🟢 Aktivni uporabniki in seje</h3>
+            <div class="admin-section" id="activeSessionsAdminBox" style="font-size: 12px; line-height: 1.5;">
+                Nalagam aktivne uporabnike...
+            </div>
+
+            <!-- KOMPAKTO UREJANJE EKIPE BREZ DRSNIKA -->
+            <h3 style="font-size: 13px; color: var(--text-bright); text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;">Urejanje ekipe</h3>
             <div id="adminMembersList" class="admin-members-grid"></div>
 
             <div style="display: flex; gap: 6px; margin-bottom: 20px;" id="addMemberBox">
@@ -424,14 +446,17 @@
             </div>
 
             <button class="btn btn-confirm" style="width: 100%; margin-top: 5px; padding: 14px; font-size: 14px;" onclick="saveAllAdminChanges()">💾 Shrani vse spremembe</button>
+
+            <h3 style="font-size: 12px; color: var(--text); margin-top: 20px; text-transform: uppercase;">📋 Okno aktivnosti in sprememb (zadnji 3 dni)</h3>
+            <div class="activity-log" id="activityLogBox">Naloženo. Čakam na akcije...</div>
         </div>
     </div>
 </div>
 
 <script>
     const DEFAULT_TEAM = ["Filipšek", "Fidler", "Pirnat", "Oprešnik", "Govedić", "Fendre", "Šetina", "Vrtačnik", "Gračner", "Rihter"];
-    const JSONBIN_ID = "6a8acb29da38895dfe0685e4";
-    const JSONBIN_KEY = "$2a$10$EsW28cFdQvTFDXudigUJiuCup2X/WKJWYcBlxO29wR8t0oPO/07mO";
+    const JSONBIN_ID = "6a635852da38895dfe89ba53";
+    const JSONBIN_KEY = "$2a$10$Js9pNBjgVI1H1NERfsW/4.eqPgp3rhcXTO78BhNeMxk0QxX8sOaOu";
     
     let teamsWebhookUrl = "https://default3caae3ec12124a678d46afe2847c45.a8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/806a9b79b01b4219bc66ed4d449ffbfd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=hTxW5wgDGp3I9TXnX6fSdLQ2r7sBnumVkzROnPYLIig";
     let teamsMsgConfirm = "✅ **{ime}** je potrdil/a rundo za danes ob 12:00! Pripravite skodelice. ☕";
@@ -444,14 +469,95 @@
     let absent = {};
     let currentRoundPaid = {};
     let dailyUnavailable = {}; 
-    let todayPayer = null; // Zabeleži osebo, ki časti tekoči dan
     let currentIndex = 0;
     let lastRotationDate = "";
     
     let loggedInUser = "";
+    let activeSessions = {};
     let appTimestamp = Date.now();
+    let activityHistory = [];
     let syncTimer = null;
     let historyStack = [];
+
+    // Generiranje ali pridobivanje obstoječega unikatnega ID seje za zavihek/napravo
+    function getSessionId() {
+        let sid = sessionStorage.getItem('COFFEE_SESSION_ID');
+        if (!sid) {
+            sid = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+            sessionStorage.setItem('COFFEE_SESSION_ID', sid);
+        }
+        return sid;
+    }
+
+    // Preprosta detekcija naprave in brskalnika
+    function getDeviceInfo() {
+        const ua = navigator.userAgent;
+        let platform = "Naprava";
+        if (ua.includes("Win")) platform = "Windows";
+        else if (ua.includes("Mac")) platform = "Mac OS";
+        else if (ua.includes("Android")) platform = "Android";
+        else if (ua.includes("iPhone") || ua.includes("iPad")) platform = "iOS";
+
+        let browser = "Brskalnik";
+        if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Chrome";
+        else if (ua.includes("Edg")) browser = "Edge";
+        else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+        else if (ua.includes("Firefox")) browser = "Firefox";
+
+        return `${browser} (${platform})`;
+    }
+
+    const sessionId = getSessionId();
+
+    window.addEventListener('beforeunload', () => {
+        if (loggedInUser && activeSessions[sessionId]) {
+            delete activeSessions[sessionId];
+        }
+    });
+
+    function cleanOldSessions() {
+        const timeoutLimit = 35 * 1000; // Sejo odstranimo, če ni bila osvežena več kot 35 sekund
+        const now = Date.now();
+        for (let id in activeSessions) {
+            if (now - activeSessions[id].time > timeoutLimit) {
+                delete activeSessions[id];
+            }
+        }
+    }
+
+    function updateActiveUsersUI() {
+        cleanOldSessions();
+        const box = document.getElementById('activeSessionsAdminBox');
+        if (!box) return;
+
+        const sessionKeys = Object.keys(activeSessions);
+        if (sessionKeys.length === 0) {
+            box.innerHTML = `<span style="color:var(--text);">Trenutno ni zabeleženih aktivnih sej.</span>`;
+            return;
+        }
+
+        let html = '';
+        sessionKeys.forEach(id => {
+            const sess = activeSessions[id];
+            const isMe = (id === sessionId);
+            const loginTimeStr = sess.loginTime ? new Date(sess.loginTime).toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' }) : '-';
+            const device = sess.device || 'Neznana naprava';
+
+            html += `
+                <div class="active-session-item">
+                    <div>
+                        <strong style="color:var(--text-bright);">${sess.user || 'Neznano'}</strong> 
+                        <span style="color:var(--text); font-size:11px;">(${device})</span>
+                        ${isMe ? '<span style="color:var(--accent); font-weight:bold; font-size:10px; margin-left:4px;">(To okno)</span>' : ''}
+                    </div>
+                    <div style="font-size:10px; color:var(--text);">
+                        Prijava: ${loginTimeStr}
+                    </div>
+                </div>
+            `;
+        });
+        box.innerHTML = html;
+    }
 
     function sendTeamsNotification(message) {
         if (!teamsWebhookUrl || teamsWebhookUrl.trim() === "") return;
@@ -482,7 +588,6 @@
             absent: { ...absent },
             currentRoundPaid: { ...currentRoundPaid },
             dailyUnavailable: { ...dailyUnavailable },
-            todayPayer: todayPayer,
             currentIndex: currentIndex,
             lastRotationDate: lastRotationDate
         });
@@ -500,14 +605,36 @@
         absent = previousState.absent;
         currentRoundPaid = previousState.currentRoundPaid;
         dailyUnavailable = previousState.dailyUnavailable;
-        todayPayer = previousState.todayPayer || null;
         currentIndex = previousState.currentIndex;
         lastRotationDate = previousState.lastRotationDate;
 
-        clampIndex();
+        logActivity("Izveden Undo (povratek prejšnjega stanja).");
         renderUI();
         pushToCloud();
         alert("Stanje je bilo uspešno povrnjeno!");
+    }
+
+    function logActivity(text) {
+        const now = Date.now();
+        activityHistory.unshift({ text, time: now });
+        const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000);
+        activityHistory = activityHistory.filter(item => item.time >= threeDaysAgo);
+        updateActivityLogUI();
+    }
+
+    function updateActivityLogUI() {
+        const box = document.getElementById('activityLogBox');
+        if(box) {
+            if(activityHistory.length === 0) {
+                box.innerHTML = "Ni nedavnih aktivnosti.";
+                return;
+            }
+            box.innerHTML = activityHistory.map(item => {
+                const timeStr = new Date(item.time).toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateStr = new Date(item.time).toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric' });
+                return `[${dateStr} ${timeStr}] ${item.text}`;
+            }).join('<br>');
+        }
     }
 
     function init() {
@@ -527,16 +654,7 @@
             renderUI();
         }, true);
 
-    setInterval(() => { syncWithCloud(null, false); }, 60000);
-
-    function clampIndex() {
-        if (team.length === 0) {
-            currentIndex = 0;
-            return;
-        }
-        if (currentIndex < 0 || currentIndex >= team.length) {
-            currentIndex = Math.max(0, Math.min(currentIndex, team.length - 1));
-        }
+        setInterval(() => { syncWithCloud(null, false); }, 50000);
     }
 
     function loadLocalStorage() {
@@ -549,7 +667,6 @@
                 if (data.absent) absent = data.absent;
                 if (data.currentRoundPaid) currentRoundPaid = data.currentRoundPaid;
                 if (data.dailyUnavailable) dailyUnavailable = data.dailyUnavailable;
-                if (data.todayPayer !== undefined) todayPayer = data.todayPayer;
                 if (typeof data.currentIndex === 'number') currentIndex = data.currentIndex;
                 if (data.lastRotationDate) lastRotationDate = data.lastRotationDate;
                 if (data.timestamp) appTimestamp = data.timestamp;
@@ -559,21 +676,24 @@
                 if (data.teamsMsgSponsor !== undefined) teamsMsgSponsor = data.teamsMsgSponsor;
                 if (data.teamsMsgInvite !== undefined) teamsMsgInvite = data.teamsMsgInvite;
                 if (data.loggedInUser) loggedInUser = data.loggedInUser;
+                if (data.activeSessions) activeSessions = data.activeSessions;
+                if (Array.isArray(data.activityHistory)) {
+                    activityHistory = data.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
+                }
             }
         } catch(e) {}
 
-        clampIndex();
         team.forEach(name => {
             if (!(name in counts)) counts[name] = 0;
             if (!(name in absent)) absent[name] = false;
             if (!(name in currentRoundPaid)) currentRoundPaid[name] = false;
             if (!(name in dailyUnavailable)) dailyUnavailable[name] = false;
         });
+        updateActivityLogUI();
     }
 
     function saveLocalStorage() {
-        clampIndex();
-        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, todayPayer, currentIndex, lastRotationDate, timestamp: appTimestamp, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, loggedInUser };
+        const state = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, loggedInUser, activeSessions };
         localStorage.setItem('COFFEE_APP_STATE_NO_TEAMS', JSON.stringify(state));
     }
 
@@ -587,7 +707,7 @@
             opt.innerText = name;
             select.appendChild(opt);
         });
-        if (loggedInUser && team.includes(loggedInUser)) {
+        if (loggedInUser) {
             select.value = loggedInUser;
         }
     }
@@ -600,6 +720,18 @@
         
         document.getElementById('loggedInUserDisplay').innerText = loggedInUser;
         document.getElementById('loginOverlay').style.display = 'none';
+        
+        const now = Date.now();
+        const devInfo = getDeviceInfo();
+        
+        activeSessions[sessionId] = { 
+            user: loggedInUser, 
+            device: devInfo,
+            loginTime: now,
+            time: now 
+        };
+
+        logActivity(`Prijava uporabnika: ${loggedInUser} (${devInfo})`);
 
         renderUI();
         pushToCloud();
@@ -620,10 +752,41 @@
             dateBadge.innerText = now.toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric', month: 'numeric' });
         }
 
-        // Če gre za nov dan, počiščemo le dnevne nedostopnosti in današnjega plačnika
         if (lastRotationDate && lastRotationDate !== todayStr) {
+            const active = getActivePerson();
+            if (active !== "-" && currentRoundPaid[active]) {
+                advanceToNextEligiblePerson();
+                logActivity("Nov dan: Prejšnji član je že plačal, premik na naslednjega.");
+            }
+            
             team.forEach(name => { dailyUnavailable[name] = false; });
-            todayPayer = null;
+
+            let allPaid = true;
+            let activeMembers = 0;
+            team.forEach(name => {
+                if (!absent[name]) {
+                    activeMembers++;
+                    if (!currentRoundPaid[name]) allPaid = false;
+                }
+            });
+
+            if (activeMembers > 0 && allPaid) {
+                let minC = Infinity;
+                team.forEach(name => {
+                    if (!absent[name]) {
+                        if ((counts[name] || 0) < minC) minC = counts[name] || 0;
+                    }
+                });
+                
+                team.forEach(name => {
+                    if ((counts[name] || 0) > minC) {
+                        currentRoundPaid[name] = true; 
+                    } else {
+                        currentRoundPaid[name] = false;
+                    }
+                });
+                logActivity("Nov krog: Statusi ponastavljeni (viški kav upoštevani).");
+            }
             needsCloudPush = true;
         }
         
@@ -636,69 +799,70 @@
         return !absent[name] && !dailyUnavailable[name];
     }
 
-    // Poišče naslednjo osebo v vrsti, ki še ni dala za kavo v trenutnem krogu
-    function getNextEligiblePerson() {
-        if (team.length === 0) return "-";
-        clampIndex();
-
-        // 1. Iščemo aktivno osebo, ki še ni dala za kavo v tem krogu
-        for (let i = 0; i < team.length; i++) {
-            let idx = (currentIndex + i) % team.length;
-            let name = team[idx];
-            if (isPersonValid(name) && !currentRoundPaid[name]) {
-                return name;
-            }
-        }
-
-        // 2. Fallback: Če so že vsi aktivni dali za kavo, vrnemo prvega prisotnega
-        for (let i = 0; i < team.length; i++) {
-            let idx = (currentIndex + i) % team.length;
-            let name = team[idx];
-            if (isPersonValid(name)) {
-                return name;
-            }
-        }
-
-        return "-";
-    }
-
-    // Pomakne kazalnik currentIndex na naslednjo primerno osebo za prihodnji krog
     function advanceToNextEligiblePerson() {
         if (team.length === 0) return;
-        clampIndex();
+        
+        let minCount = Infinity;
+        team.forEach(name => {
+            if (isPersonValid(name) && !currentRoundPaid[name]) {
+                let c = counts[name] || 0;
+                if (c < minCount) minCount = c;
+            }
+        });
 
+        if (minCount === Infinity) {
+            team.forEach(name => {
+                if (isPersonValid(name)) {
+                    let c = counts[name] || 0;
+                    if (c < minCount) minCount = c;
+                }
+            });
+        }
+
+        let found = false;
         for (let i = 1; i <= team.length; i++) {
             let idx = (currentIndex + i) % team.length;
             let name = team[idx];
-            if (isPersonValid(name) && !currentRoundPaid[name]) {
+            if (isPersonValid(name) && !currentRoundPaid[name] && (counts[name] || 0) === minCount) {
                 currentIndex = idx;
-                return;
+                found = true;
+                break;
             }
         }
-
-        for (let i = 1; i <= team.length; i++) {
-            let idx = (currentIndex + i) % team.length;
-            if (isPersonValid(team[idx])) {
-                currentIndex = idx;
-                return;
+        
+        if (!found) {
+            for (let i = 1; i <= team.length; i++) {
+                let idx = (currentIndex + i) % team.length;
+                if (isPersonValid(team[idx])) {
+                    currentIndex = idx;
+                    break;
+                }
             }
         }
     }
 
-    // Preveri, ali so vsi prisotni v trenutnem krogu že dali za kavo
-    function checkRoundCompletion() {
-        const activeMembers = team.filter(m => !absent[m]);
-        if (activeMembers.length > 0 && activeMembers.every(m => currentRoundPaid[m])) {
-            // Vsi prisotni so dali za kavo -> krog je zaključen! Resetiramo kljukice za nov krog
-            team.forEach(m => { currentRoundPaid[m] = false; });
-            return true;
+    function getActivePerson() {
+        if (team.length === 0) return "-";
+        for (let i = 0; i < team.length; i++) {
+            let idx = (currentIndex + i) % team.length;
+            if (isPersonValid(team[idx])) return team[idx];
         }
-        return false;
+        return team[currentIndex % team.length];
     }
 
     function syncWithCloud(onComplete, forceServer = false) {
         const syncStatus = document.getElementById('syncStatus');
         if (syncStatus && forceServer) syncStatus.innerText = '⏳ Nalagam...';
+        
+        if (loggedInUser) {
+            const currentSess = activeSessions[sessionId] || {};
+            activeSessions[sessionId] = { 
+                user: loggedInUser, 
+                device: currentSess.device || getDeviceInfo(),
+                loginTime: currentSess.loginTime || Date.now(),
+                time: Date.now() 
+            };
+        }
 
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
             method: 'GET',
@@ -714,7 +878,6 @@
                     if (cloudData.absent) absent = cloudData.absent;
                     if (cloudData.currentRoundPaid) currentRoundPaid = cloudData.currentRoundPaid;
                     if (cloudData.dailyUnavailable) dailyUnavailable = cloudData.dailyUnavailable;
-                    if (cloudData.todayPayer !== undefined) todayPayer = cloudData.todayPayer;
                     if (typeof cloudData.currentIndex === 'number') currentIndex = cloudData.currentIndex;
                     if (cloudData.lastRotationDate) lastRotationDate = cloudData.lastRotationDate;
                     if (cloudData.teamsWebhookUrl !== undefined) teamsWebhookUrl = cloudData.teamsWebhookUrl;
@@ -723,12 +886,21 @@
                     if (cloudData.teamsMsgSponsor !== undefined) teamsMsgSponsor = cloudData.teamsMsgSponsor;
                     if (cloudData.teamsMsgInvite !== undefined) teamsMsgInvite = cloudData.teamsMsgInvite;
                     
+                    if (cloudData.activeSessions) {
+                        activeSessions = { ...cloudData.activeSessions, ...activeSessions };
+                    }
+                    
+                    if (Array.isArray(cloudData.activityHistory)) {
+                        activityHistory = cloudData.activityHistory.filter(item => item.time >= Date.now() - (3 * 24 * 60 * 60 * 1000));
+                    }
                     appTimestamp = cloudData.timestamp || Date.now();
-                    clampIndex();
                     saveLocalStorage();
+                    updateActivityLogUI();
                 }
             }
             if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
+            cleanOldSessions();
+            updateActiveUsersUI();
             setupLoginDropdown();
             checkDateRollover();
             renderUI();
@@ -736,12 +908,15 @@
         })
         .catch(() => {
             if (syncStatus) syncStatus.innerText = '⚠️ Lokalno';
+            cleanOldSessions();
+            updateActiveUsersUI();
             setupLoginDropdown();
             renderUI();
             if (onComplete) onComplete(false);
         });
     }
 
+    // Varna izvedba akcijskih sprememb - najprej prebere strežnik, združi stanja in nato shrani
     function performCloudAction(actionFn, onComplete) {
         fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
             method: 'GET',
@@ -749,15 +924,38 @@
         })
         .then(res => res.json())
         .then(data => {
-            if (data?.record?.counts) {
-                for (let key in data.record.counts) {
-                    counts[key] = Math.max(counts[key] || 0, data.record.counts[key] || 0);
+            if (data?.record) {
+                const cloudData = data.record;
+                // Združevanje števcev rund (prevlada višja vrednost, če so nastale sočasne spremembe)
+                if (cloudData.counts) {
+                    for (let key in cloudData.counts) {
+                        counts[key] = Math.max(counts[key] || 0, cloudData.counts[key] || 0);
+                    }
+                }
+                if (cloudData.activeSessions) {
+                    activeSessions = { ...cloudData.activeSessions, ...activeSessions };
+                }
+                if (Array.isArray(cloudData.activityHistory)) {
+                    // Združitev dnevnikov brez podvajanja
+                    const mergedHist = [...activityHistory, ...cloudData.activityHistory];
+                    const uniqueHist = [];
+                    const map = new Set();
+                    mergedHist.forEach(item => {
+                        const key = item.time + '_' + item.text;
+                        if (!map.has(key)) {
+                            map.add(key);
+                            uniqueHist.push(item);
+                        }
+                    });
+                    activityHistory = uniqueHist.sort((a,b) => b.time - a.time).slice(0, 50);
                 }
             }
+            // Izvedemo lokalno akcijo po osvežitvi podatkov
             actionFn();
             pushToCloud(onComplete);
         })
         .catch(() => {
+            // V primeru da strežnik ni dosegljiv, izvedemo akcijo lokalno
             actionFn();
             pushToCloud(onComplete);
         });
@@ -767,10 +965,19 @@
         if (syncTimer) clearTimeout(syncTimer);
         syncTimer = setTimeout(() => {
             appTimestamp = Date.now();
-            clampIndex();
+            if (loggedInUser) {
+                const currentSess = activeSessions[sessionId] || {};
+                activeSessions[sessionId] = { 
+                    user: loggedInUser, 
+                    device: currentSess.device || getDeviceInfo(),
+                    loginTime: currentSess.loginTime || Date.now(),
+                    time: Date.now() 
+                };
+            }
+            cleanOldSessions();
             saveLocalStorage();
             
-            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, todayPayer, currentIndex, lastRotationDate, timestamp: appTimestamp, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite };
+            const payload = { team, counts, absent, currentRoundPaid, dailyUnavailable, currentIndex, lastRotationDate, timestamp: appTimestamp, activityHistory, teamsWebhookUrl, teamsMsgConfirm, teamsMsgCant, teamsMsgSponsor, teamsMsgInvite, activeSessions };
 
             fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
                 method: 'PUT',
@@ -781,6 +988,7 @@
                 const syncStatus = document.getElementById('syncStatus');
                 if (res.ok) {
                     if (syncStatus) syncStatus.innerText = '✅ Sinhronizirano';
+                    updateActiveUsersUI();
                     if (onComplete) onComplete(true);
                 } else {
                     if (syncStatus) syncStatus.innerText = '⚠️ Napaka';
@@ -796,23 +1004,16 @@
     }
 
     function confirmMyCoffee() {
-        const active = todayPayer || getNextEligiblePerson();
-        if (active === "-") {
-            alert("Trenutno ni dostopnih članov za kavo.");
-            return;
-        }
+        const active = getActivePerson();
+        if (active === "-") return;
 
         if (confirm(`Ali potrjuješ, da bo ${active} danes ob 12:00 dal za kavo?`)) {
             performCloudAction(() => {
                 saveStateSnapshot();
                 counts[active] = (counts[active] || 0) + 1;
                 currentRoundPaid[active] = true;
-                todayPayer = active;
                 dailyUnavailable[active] = false; 
-
-                checkRoundCompletion();
-                advanceToNextEligiblePerson();
-
+                logActivity(`Potrjeno za danes: ${active} daje ob 12:00.`);
                 renderUI();
             }, (success) => {
                 if (success) {
@@ -824,22 +1025,20 @@
     }
 
     function cantGiveCoffee() {
-        const active = getNextEligiblePerson();
-        if (active === "-") {
-            alert("Trenutno ni dostopnih članov za kavo.");
-            return;
-        }
+        const active = getActivePerson();
+        if (active === "-") return;
 
         if (confirm(`Označi, da ${active} danes ne more dati za kavo?`)) {
             performCloudAction(() => {
                 saveStateSnapshot();
                 dailyUnavailable[active] = true; 
                 currentRoundPaid[active] = false;
+                logActivity(`${active} danes ne more dati za kavo.`);
                 
                 advanceToNextEligiblePerson(); 
                 renderUI();
             }, (success) => {
-                const newActive = getNextEligiblePerson();
+                const newActive = getActivePerson();
                 if (success) {
                     alert("Zabeleženo, naslednji je na vrsti.");
                     sendTeamsNotification(teamsMsgCant.replace(/{ime}/g, active).replace(/{naslednji}/g, newActive));
@@ -858,12 +1057,14 @@
                 saveStateSnapshot();
                 counts[loggedInUser] = (counts[loggedInUser] || 0) + 1;
                 currentRoundPaid[loggedInUser] = true;
-                todayPayer = loggedInUser;
                 dailyUnavailable[loggedInUser] = false;
                 
-                checkRoundCompletion();
-                advanceToNextEligiblePerson();
+                const idx = team.indexOf(loggedInUser);
+                if (idx !== -1) {
+                    currentIndex = idx;
+                }
 
+                logActivity(`${loggedInUser} je prostovoljno častil kavo.`);
                 renderUI();
             }, (success) => {
                 if (success) {
@@ -880,6 +1081,7 @@
             let userToNotify = loggedInUser || "Neznano";
             let msg = teamsMsgInvite.replace(/{ime}/g, userToNotify).replace(/{cas}/g, time);
             sendTeamsNotification(msg);
+            logActivity(`Poslano vabilo na kavo za ob ${time}.`);
             alert(`Vabilo za ob ${time} je bilo uspešno poslano na Teams!`);
         }
     }
@@ -888,9 +1090,11 @@
         performCloudAction(() => {
             saveStateSnapshot();
             dailyUnavailable[name] = !dailyUnavailable[name];
+            let actor = loggedInUser || "Nekdo";
+            logActivity(`${actor} je označil, da ${name} danes ${dailyUnavailable[name] ? 'ne more (odsoten)' : 'lahko'}.`);
             
-            const nextPerson = getNextEligiblePerson();
-            if (nextPerson === name && dailyUnavailable[name]) {
+            let active = getActivePerson();
+            if (active === name && dailyUnavailable[name]) {
                 advanceToNextEligiblePerson();
             }
             renderUI();
@@ -898,29 +1102,15 @@
     }
 
     function renderUI() {
-        clampIndex();
-        const nextPerson = getNextEligiblePerson();
+        const active = getActivePerson();
+        document.getElementById('currentPersonName').innerText = active;
         
-        const subtitleEl = document.getElementById('statusSubtitle');
-        const nameEl = document.getElementById('currentPersonName');
-        const subtextEl = document.getElementById('nextPersonSubtext');
-
-        // Če imamo za danes potrjeno osebo, ki časti:
-        if (todayPayer) {
-            subtitleEl.innerText = "⭐ Danes potrjeno časti:";
-            nameEl.innerText = todayPayer;
-            nameEl.style.color = "var(--accent)";
-            if (subtextEl) {
-                subtextEl.style.display = "block";
-                subtextEl.innerText = `Naslednji na vrsti za kavo (jutri): ${nextPerson}`;
-            }
+        if (active !== "-" && currentRoundPaid[active]) {
+            document.getElementById('statusSubtitle').innerText = "☕ Danes potrjeno časti:";
+            document.getElementById('currentPersonName').style.color = "var(--accent)";
         } else {
-            subtitleEl.innerText = "Danes je na vrsti za kavo:";
-            nameEl.innerText = nextPerson;
-            nameEl.style.color = "var(--text-bright)";
-            if (subtextEl) {
-                subtextEl.style.display = "none";
-            }
+            document.getElementById('statusSubtitle').innerText = "Danes je na vrsti za kavo:";
+            document.getElementById('currentPersonName').style.color = "var(--text-bright)";
         }
 
         document.getElementById('settingsBtn').style.display = (loggedInUser === "Filipšek") ? 'flex' : 'none';
@@ -929,14 +1119,13 @@
         grid.innerHTML = '';
 
         team.forEach(name => {
-            const isTodayPayer = (todayPayer && name === todayPayer);
-            const isNext = (!todayPayer && name === nextPerson);
+            const isNext = (name === active);
             const isTodayPaid = currentRoundPaid[name];
             const isAbs = absent[name];
             const isUnav = dailyUnavailable[name];
 
             let cardClass = "member-card";
-            let statusText = "⏳ Čaka na vrsto";
+            let statusText = "";
             
             if (isAbs) {
                 cardClass += " is-absent";
@@ -944,15 +1133,15 @@
             } else if (isUnav) {
                 cardClass += " is-unavailable";
                 statusText = "❌ Danes ne more";
-            } else if (isTodayPayer) {
+            } else if (isNext && isTodayPaid) {
+                cardClass += " is-paid is-next";
+                statusText = "☕ Danes potrjeno časti!";
+            } else if (isTodayPaid) {
                 cardClass += " is-paid";
-                statusText = "⭐ Častil danes";
+                statusText = "✅ Že dal";
             } else if (isNext) {
                 cardClass += " is-next";
                 statusText = "👉 Na vrsti danes";
-            } else if (isTodayPaid) {
-                cardClass += " is-paid";
-                statusText = "✅ Že dal v tem krogu";
             }
 
             const card = document.createElement('div');
@@ -968,6 +1157,8 @@
             `;
             grid.appendChild(card);
         });
+
+        updateActiveUsersUI();
     }
 
     function openAdminModal() {
@@ -979,6 +1170,7 @@
         document.getElementById('teamsMsgSponsorInput').value = teamsMsgSponsor || '';
         document.getElementById('teamsMsgInviteInput').value = teamsMsgInvite || '';
         renderAdminMembers();
+        updateActiveUsersUI();
     }
 
     function closeAdminModal() {
@@ -986,6 +1178,7 @@
         renderUI();
     }
 
+    // Kompakten prikaz članov ekipe brez drsnika (Mreža / Grid)
     function renderAdminMembers() {
         const list = document.getElementById('adminMembersList');
         if (!list) return;
@@ -1005,7 +1198,7 @@
                     <button class="mini-btn" style="background:var(--danger); color:white;" onclick="removeMember('${name}')">🗑️</button>
                 </div>
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                    <span style="font-size: 11px; font-weight: bold; color: var(--text);">Skupaj rund:</span>
+                    <span style="font-size: 11px; font-weight: bold; color: var(--text);">Runde:</span>
                     <div style="display: flex; align-items: center; gap: 4px;">
                         <button class="mini-btn" style="background:#334155; color:white;" onclick="changeCount('${name}', -1)">➖</button>
                         <span style="font-size: 12px; font-weight: bold; min-width: 20px; text-align: center; color: var(--text-bright);">${userCount}</span>
@@ -1027,21 +1220,20 @@
     function changeCount(name, amount) {
         saveStateSnapshot();
         counts[name] = Math.max(0, (counts[name] || 0) + amount);
+        logActivity(`Spremenjeno število rund za ${name}`);
         renderAdminMembers();
     }
 
     function setAsNext(index) {
         saveStateSnapshot();
         currentIndex = index;
-        clampIndex();
+        logActivity(`Ročno nastavljen naslednji: ${team[index]}`);
         renderAdminMembers();
         alert(`Član ${team[index]} je nastavljen kot naslednji!`);
     }
 
     function renameMember(index) {
-        const input = document.getElementById(`nameInput_${index}`);
-        if (!input) return;
-        const newName = input.value.trim();
+        const newName = document.getElementById(`nameInput_${index}`).value.trim();
         const oldName = team[index];
         if (!newName || newName === oldName || team.includes(newName)) return;
 
@@ -1051,8 +1243,8 @@
         absent[newName] = absent[oldName] || false; delete absent[oldName];
         currentRoundPaid[newName] = currentRoundPaid[oldName] || false; delete currentRoundPaid[oldName];
         dailyUnavailable[newName] = dailyUnavailable[oldName] || false; delete dailyUnavailable[oldName];
-        if (todayPayer === oldName) todayPayer = newName;
 
+        logActivity(`Preimenovan član: ${oldName} -> ${newName}`);
         setupLoginDropdown();
         renderAdminMembers();
     }
@@ -1060,12 +1252,15 @@
     function toggleAbsent(name) {
         saveStateSnapshot();
         absent[name] = !absent[name];
+        logActivity(`Spremenjen status dopusta za ${name}`);
         renderAdminMembers();
     }
 
     function togglePaid(name) {
         saveStateSnapshot();
         currentRoundPaid[name] = !currentRoundPaid[name];
+        counts[name] = currentRoundPaid[name] ? (counts[name] || 0) + 1 : Math.max(0, (counts[name] || 1) - 1);
+        logActivity(`Spremenjen status 'Že dal' za ${name}`);
         renderAdminMembers();
     }
 
@@ -1076,7 +1271,6 @@
         const temp = team[index];
         team[index] = team[newIdx];
         team[newIdx] = temp;
-        clampIndex();
         renderAdminMembers();
     }
 
@@ -1088,7 +1282,7 @@
         team.push(name);
         counts[name] = 0; absent[name] = false; currentRoundPaid[name] = false; dailyUnavailable[name] = false;
         input.value = '';
-        clampIndex();
+        logActivity(`Dodan nov član: ${name}`);
         setupLoginDropdown();
         renderAdminMembers();
     }
@@ -1098,8 +1292,7 @@
             saveStateSnapshot();
             team = team.filter(m => m !== name);
             delete counts[name]; delete absent[name]; delete currentRoundPaid[name]; delete dailyUnavailable[name];
-            if (todayPayer === name) todayPayer = null;
-            clampIndex();
+            logActivity(`Odstranjen član: ${name}`);
             setupLoginDropdown();
             renderAdminMembers();
         }
@@ -1115,6 +1308,7 @@
             teamsMsgInvite = document.getElementById('teamsMsgInviteInput').value.trim();
 
             saveLocalStorage();
+            logActivity("Spremembe v nastavitvah shranjene.");
         }, (success) => {
             alert(success ? "Spremembe uspešno shranjene in sinhronizirane!" : "Spremembe shranjene lokalno.");
             closeAdminModal();

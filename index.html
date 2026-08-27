@@ -527,12 +527,7 @@
             renderUI();
         }, true);
 
-        setInterval(() => { 
-            // Sinhroniziraj le, če je zavihek trenutno odprt/aktiven
-            if (!document.hidden) {
-                syncWithCloud(null, false); 
-            }
-        }, 30000); // osveži na vsakih 30 sekund, ko je zavihek aktiven
+    setInterval(() => { syncWithCloud(null, false); }, 60000);
 
     function clampIndex() {
         if (team.length === 0) {
